@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.admin import Admin
-from app.models.company import Company
 from app.models.student import Student
 from app.utils.auth import decode_token
 
@@ -37,22 +36,6 @@ async def get_current_student(
     if not student:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
     return student
-
-
-async def get_current_company(
-    payload: dict = Depends(_get_payload),
-    db: AsyncSession = Depends(get_db),
-) -> Company:
-    if payload.get("role") != "company":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Company access required")
-
-    result = await db.execute(
-        select(Company).where(Company.id == int(payload["sub"]), Company.is_active == True)
-    )
-    company = result.scalar_one_or_none()
-    if not company:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
-    return company
 
 
 async def get_current_admin(

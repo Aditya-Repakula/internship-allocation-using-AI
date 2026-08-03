@@ -6,9 +6,11 @@ import StudentDashboard from "./pages/student/Dashboard";
 import StudentProfile from "./pages/student/Profile";
 import Resume from "./pages/student/Resume";
 import StudentResult from "./pages/student/Result";
-import CompanyDashboard from "./pages/company/Dashboard";
-import CompanyInternships from "./pages/company/Internships";
-import AllocatedStudents from "./pages/company/AllocatedStudents";
+import StudentInternships from "./pages/student/Internships";
+import StudentApplications from "./pages/student/Applications";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminInternships from "./pages/admin/Internships";
+import AdminAllocations from "./pages/admin/Allocations";
 
 function ProtectedRoute({ children, role }: { children: JSX.Element; role: string }) {
   const { token, role: userRole } = useAuth();
@@ -26,11 +28,18 @@ function AppRoutes() {
       <Route path="/student/dashboard" element={<ProtectedRoute role="student"><StudentDashboard /></ProtectedRoute>} />
       <Route path="/student/profile" element={<ProtectedRoute role="student"><StudentProfile /></ProtectedRoute>} />
       <Route path="/student/resume" element={<ProtectedRoute role="student"><Resume /></ProtectedRoute>} />
+      <Route path="/student/internships" element={<ProtectedRoute role="student"><StudentInternships /></ProtectedRoute>} />
+      <Route path="/student/applications" element={<ProtectedRoute role="student"><StudentApplications /></ProtectedRoute>} />
       <Route path="/student/result" element={<ProtectedRoute role="student"><StudentResult /></ProtectedRoute>} />
 
-      <Route path="/company/dashboard" element={<ProtectedRoute role="company"><CompanyDashboard /></ProtectedRoute>} />
-      <Route path="/company/internships" element={<ProtectedRoute role="company"><CompanyInternships /></ProtectedRoute>} />
-      <Route path="/company/students" element={<ProtectedRoute role="company"><AllocatedStudents /></ProtectedRoute>} />
+      <Route path="/admin/dashboard" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/internships" element={<ProtectedRoute role="admin"><AdminInternships /></ProtectedRoute>} />
+      <Route path="/admin/allocations" element={<ProtectedRoute role="admin"><AdminAllocations /></ProtectedRoute>} />
+
+      {/* Legacy company URLs → admin */}
+      <Route path="/company/*" element={<Navigate to="/admin/dashboard" replace />} />
+
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
 }

@@ -1,50 +1,181 @@
 import pytest
 
+from tests.conftest import INTERNSHIP_PAYLOAD
+
+
+async def _prepare_student(client, student_token):
+    await client.put(
+        "/api/student/profile",
+        headers={"Authorization": f"Bearer {student_token}"},
+        json={
+            "college": "Test College",
+            "degree": "B.Tech",
+            "branch": "AIML",
+            "cgpa": 8.5,
+            "interested_sector": "AI/ML",
+            "preferred_location": "Bangalore",
+        },
+    )
+    await client.post(
+        "/api/student/skills/confirm",
+        headers={"Authorization": f"Bearer {student_token}"},
+        json={"confirmed_skills": ["Python", "Machine Learning"]},
+    )
+
+
+async def _create_open_internship(client, admin_token, **overrides):
+    payload = {**INTERNSHIP_PAYLOAD, **overrides}
+    res = await client.post(
+        "/api/admin/internships",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json=payload,
+    )
+    assert res.status_code == 201
+    return res.json()
+
 
 @pytest.mark.asyncio
-async def test_run_allocation(client, student_token, company_token):
-    await client.put("/api/student/profile",
+async def test_full_allocation_and_publish_flow(client, student_token, admin_token):
+    await _prepare_student(client, student_token)
+    internship = await _create_open_internship(client, admin_token)
+    iid = internship["id"]
+
+    apply = await client.post(
+        f"/api/student/apply/{iid}",
         headers={"Authorization": f"Bearer {student_token}"},
-        json={"branch": "AIML", "interested_sector": "AI/ML", "preferred_location": "Bangalore"}
     )
-    await client.post("/api/student/skills/confirm",
+    assert apply.status_code == 201
+
+    # Cannot allocate while open
+    blocked = await client.post(
+        f"/api/admin/internships/{iid}/run-allocation",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert blocked.status_code == 400
+
+    await client.patch(
+        f"/api/admin/internships/{iid}/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "closed"},
+    )
+
+    alloc = await client.post(
+        f"/api/admin/internships/{iid}/run-allocation",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert alloc.status_code == 200
+    assert alloc.json()["allocated"] >= 1
+
+    # Student must NOT see result before publish
+    pending = await client.get(
+        "/api/student/result",
         headers={"Authorization": f"Bearer {student_token}"},
-        json={"confirmed_skills": ["Python", "Machine Learning"]}
     )
-    await client.post("/api/company/internships",
-        headers={"Authorization": f"Bearer {company_token}"},
-        json={
-            "role": "ML Intern", "description": "ML work",
-            "required_skills": ["Python", "Machine Learning"],
-            "location": "Bangalore", "mode": "remote", "seats": 2, "sector": "AI/ML"
-        }
+    assert pending.status_code == 200
+    assert pending.json()["allocated"] is False
+    assert pending.json()["results_published"] is False
+
+    # Admin reviews
+    review = await client.get(
+        f"/api/admin/internships/{iid}/allocations",
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
-    res = await client.post("/api/allocation/run",
-        headers={"Authorization": f"Bearer {company_token}"},
-        json={}
+    assert review.status_code == 200
+    assert len(review.json()["allocated_students"]) >= 1
+
+    pub = await client.post(
+        f"/api/admin/internships/{iid}/publish-results",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert pub.status_code == 200
+    assert pub.json()["results_published"] is True
+
+    result = await client.get(
+        "/api/student/result",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+    assert result.status_code == 200
+    body = result.json()
+    assert body["allocated"] is True
+    assert body["match_scores"]["overall"] > 0
+    assert body["internship"]["title"] == "AI/ML Intern"
+
+
+@pytest.mark.asyncio
+async def test_student_cannot_trigger_allocation(client, student_token, admin_token):
+    internship = await _create_open_internship(client, admin_token)
+    await client.patch(
+        f"/api/admin/internships/{internship['id']}/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "closed"},
+    )
+    res = await client.post(
+        f"/api/admin/internships/{internship['id']}/run-allocation",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_duplicate_application_blocked(client, student_token, admin_token):
+    await _prepare_student(client, student_token)
+    internship = await _create_open_internship(client, admin_token)
+    iid = internship["id"]
+    first = await client.post(
+        f"/api/student/apply/{iid}",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+    assert first.status_code == 201
+    second = await client.post(
+        f"/api/student/apply/{iid}",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+    assert second.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_global_allocation_one_student_one_seat(client, student_token, admin_token):
+    await _prepare_student(client, student_token)
+    a = await _create_open_internship(client, admin_token, title="Role A", seats=1)
+    b = await _create_open_internship(
+        client,
+        admin_token,
+        title="Role B",
+        seats=1,
+        required_skills=["Python", "SQL"],
+    )
+
+    await client.post(
+        f"/api/student/apply/{a['id']}",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+    await client.post(
+        f"/api/student/apply/{b['id']}",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+
+    for iid in (a["id"], b["id"]):
+        await client.patch(
+            f"/api/admin/internships/{iid}/status",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"status": "closed"},
+        )
+
+    res = await client.post(
+        "/api/admin/run-allocation",
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert res.status_code == 200
-    assert "allocated" in res.json()
-    result_res = await client.get("/api/allocation/my-result",
-        headers={"Authorization": f"Bearer {student_token}"}
-    )
-    assert result_res.status_code == 200
-    assert result_res.json()["allocated"] is True
-    assert result_res.json()["match_scores"]["sector"] > 0
-
-
-@pytest.mark.asyncio
-async def test_student_allocation_result(client, student_token):
-    res = await client.get("/api/allocation/my-result",
-        headers={"Authorization": f"Bearer {student_token}"}
-    )
-    assert res.status_code in [200, 404]
+    assert res.json()["allocated"] == 1
 
 
 @pytest.mark.asyncio
 async def test_ai_skill_extraction():
     from app.ai.skill_extractor import extract_skills_from_text
-    skills = extract_skills_from_text("Experienced in Python, Machine Learning, and TensorFlow")
+
+    skills = extract_skills_from_text(
+        "Experienced in Python, Machine Learning, and TensorFlow"
+    )
     assert "python" in [s.lower() for s in skills]
 
 
@@ -66,74 +197,4 @@ async def test_ai_matcher():
         internship_location="Bangalore",
         internship_sector="AI/ML",
     )
-    assert result.overall_score > 0
-    assert 0 <= result.overall_score <= 100
-
-
-@pytest.mark.asyncio
-async def test_company_view_internship_allocations(client, student_token, company_token):
-    """Company can view allocated students for their internship via allocation route."""
-    # Setup: confirm student skills
-    await client.put("/api/student/profile",
-        headers={"Authorization": f"Bearer {student_token}"},
-        json={"branch": "AIML", "degree": "B.Tech",
-              "interested_sector": "AI/ML", "preferred_location": "Bangalore"}
-    )
-    await client.post("/api/student/skills/confirm",
-        headers={"Authorization": f"Bearer {student_token}"},
-        json={"confirmed_skills": ["Python", "Deep Learning"]}
-    )
-    # Create internship
-    intern_res = await client.post("/api/company/internships",
-        headers={"Authorization": f"Bearer {company_token}"},
-        json={
-            "role": "DL Intern", "description": "Deep Learning role",
-            "required_skills": ["Python", "Deep Learning"],
-            "location": "Bangalore", "mode": "remote",
-            "seats": 2, "sector": "AI/ML"
-        }
-    )
-    internship_id = intern_res.json()["id"]
-    # Run allocation
-    await client.post("/api/allocation/run",
-        headers={"Authorization": f"Bearer {company_token}"},
-        json={}
-    )
-    # Company views allocations
-    res = await client.get(f"/api/allocation/internship/{internship_id}",
-        headers={"Authorization": f"Bearer {company_token}"}
-    )
-    assert res.status_code == 200
-    data = res.json()
-    assert "students" in data
-    assert "seats" in data
-    assert data["internship_id"] == internship_id
-
-
-@pytest.mark.asyncio
-async def test_student_cannot_trigger_allocation(client, student_token):
-    """Students must not be able to trigger the allocation engine."""
-    res = await client.post("/api/allocation/run",
-        headers={"Authorization": f"Bearer {student_token}"},
-        json={}
-    )
-    assert res.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_fresh_student_not_yet_allocated(client):
-    """A brand new student who hasn't confirmed skills returns allocated=False."""
-    # Register a fresh student
-    await client.post("/api/auth/student/register", json={
-        "email": "fresh_student@test.com", "password": "test123",
-        "name": "Fresh Student", "college": "X", "branch": "CSE", "cgpa": 8.0
-    })
-    login_res = await client.post("/api/auth/student/login", json={
-        "email": "fresh_student@test.com", "password": "test123"
-    })
-    token = login_res.json()["access_token"]
-    res = await client.get("/api/allocation/my-result",
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    assert res.status_code == 200
-    assert res.json()["allocated"] is False
+    assert 0 < result.overall_score <= 100

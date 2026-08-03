@@ -29,12 +29,10 @@ app.add_middleware(
 
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
-from app.api.routes import admin, auth, allocation, company, student
-app.include_router(auth.router,        prefix="/api/auth",        tags=["Auth"])
-app.include_router(student.router,     prefix="/api/student",     tags=["Student"])
-app.include_router(company.router,     prefix="/api/company",     tags=["Company"])
-app.include_router(allocation.router,  prefix="/api/allocation",  tags=["Allocation"])
-app.include_router(admin.router,       prefix="/api/admin",       tags=["Admin"])
+from app.api.routes import admin, auth, student
+app.include_router(auth.router,    prefix="/api/auth",    tags=["Auth"])
+app.include_router(student.router, prefix="/api/student", tags=["Student"])
+app.include_router(admin.router,   prefix="/api/admin",   tags=["Admin"])
 
 
 @app.get("/")

@@ -75,9 +75,10 @@ async def test_reconfirm_skills_with_different_set(client, student_token):
 
 
 @pytest.mark.asyncio
-async def test_company_cannot_access_student_route(client, company_token):
-    """Company token must not be accepted on student-only endpoints."""
-    res = await client.get("/api/student/profile",
-        headers={"Authorization": f"Bearer {company_token}"}
+async def test_admin_cannot_access_student_route(client, admin_token):
+    """Admin token must not be accepted on student-only endpoints."""
+    res = await client.get(
+        "/api/student/profile",
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert res.status_code == 403

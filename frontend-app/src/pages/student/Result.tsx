@@ -1,111 +1,134 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import Layout from "../../components/Layout";
 import api from "../../services/api";
 
 export default function StudentResult() {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
   const [result, setResult] = useState<any>(null);
 
   useEffect(() => {
-    api.get("/api/allocation/my-result").then(r => setResult(r.data));
+    api.get("/api/student/result").then((r) => setResult(r.data));
   }, []);
 
-  if (!result) return <div style={styles.loading}>Loading...</div>;
+  if (!result) return <div style={s.loading}>Loading...</div>;
 
   return (
-    <div style={styles.page}>
-      <div style={styles.sidebar}>
-        <h3 style={styles.logo}>🎓 Student</h3>
-        <nav>
-          {[["Dashboard", "/student/dashboard"], ["My Profile", "/student/profile"], ["Upload Resume", "/student/resume"], ["My Result", "/student/result"]].map(([l, p]) => (
-            <div key={p} style={styles.navItem} onClick={() => navigate(p)}>{l}</div>
-          ))}
-        </nav>
-        <div style={{ ...styles.navItem, color: "#e53e3e" }} onClick={logout}>Logout</div>
-      </div>
+    <Layout role="student">
+      <h2 style={s.heading}>My Internship Result</h2>
 
-      <div style={styles.main}>
-        <h2 style={styles.heading}>My Internship Result</h2>
-
-        {!result.allocated ? (
-          <div style={styles.card}>
-            <h3>⏳ Not Allocated Yet</h3>
-            <p>{result.message}</p>
+      {!result.allocated || !result.results_published ? (
+        <div style={s.card}>
+          <h3 style={s.cardTitle}>Results Pending</h3>
+          <p style={{ color: "#6b7280" }}>
+            {result.message ||
+              "Allocation is under process. Results will be announced by the company."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div style={{ ...s.card, borderLeft: "4px solid #10b981" }}>
+            <h3 style={s.cardTitle}>Allocated Internship</h3>
+            <div style={s.grid}>
+              {[
+                ["Company", result.company_name],
+                ["Role", result.internship.title],
+                ["Location", result.internship.location],
+                ["Mode", result.internship.mode],
+                ["Duration", result.internship.duration],
+                ["Status", result.allocation.status],
+                ["Rank", `#${result.allocation.rank}`],
+              ].map(([k, v]) => (
+                <div key={k} style={s.infoItem}>
+                  <span style={s.infoKey}>{k}:</span> {v || "—"}
+                </div>
+              ))}
+            </div>
           </div>
-        ) : (
-          <>
-            {/* Internship Card */}
-            <div style={{ ...styles.card, borderLeft: "4px solid #48bb78" }}>
-              <h3 style={styles.cardTitle}>🎉 Allocated Internship</h3>
-              <div style={styles.grid}>
-                <div><b>Role:</b> {result.internship.role}</div>
-                <div><b>Location:</b> {result.internship.location}</div>
-                <div><b>Mode:</b> {result.internship.mode}</div>
-                <div><b>Duration:</b> {result.internship.duration}</div>
-                <div><b>Status:</b> {result.allocation.status}</div>
-                <div><b>Rank:</b> #{result.allocation.rank}</div>
-              </div>
-            </div>
 
-            {/* Match Score */}
-            <div style={styles.card}>
-              <h3 style={styles.cardTitle}>📊 Match Score Breakdown</h3>
-              <div style={styles.overallScore}>{result.match_scores.overall}%</div>
-              <div style={styles.scoresGrid}>
-                {[
-                  ["Skills", result.match_scores.skills],
-                  ["Degree", result.match_scores.degree],
-                  ["Branch", result.match_scores.branch],
-                  ["CGPA", result.match_scores.cgpa],
-                  ["Location", result.match_scores.location],
-                  ["Sector", result.match_scores.sector],
-                ].map(([label, val]) => (
-                  <div key={label} style={styles.scoreItem}>
-                    <div style={styles.scoreLabel}>{label}</div>
-                    <div style={styles.scoreBar}>
-                      <div style={{ ...styles.scoreBarFill, width: `${val}%` }} />
-                    </div>
-                    <div style={styles.scoreVal}>{val}%</div>
+          <div style={s.card}>
+            <h3 style={s.cardTitle}>Match Score Breakdown</h3>
+            <div style={s.overallScore}>{result.match_scores.overall}%</div>
+            <div style={s.barsWrap}>
+              {[
+                ["Skills", result.match_scores.skills],
+                ["Degree", result.match_scores.degree],
+                ["Branch", result.match_scores.branch],
+                ["CGPA", result.match_scores.cgpa],
+                ["Location", result.match_scores.location],
+                ["Sector", result.match_scores.sector],
+              ].map(([label, val]) => (
+                <div key={label as string} style={s.barRow}>
+                  <div style={s.barLabel}>{label}</div>
+                  <div style={s.barTrack}>
+                    <div style={{ ...s.barFill, width: `${val}%` }} />
                   </div>
-                ))}
+                  <div style={s.barVal}>{val}%</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {(result.matched_skills?.length > 0 || result.missing_skills?.length > 0) && (
+            <div style={s.card}>
+              <h3 style={s.cardTitle}>Skills Analysis</h3>
+              <div style={s.grid}>
+                <div>
+                  <b>Matched:</b> {(result.matched_skills || []).join(", ") || "—"}
+                </div>
+                <div>
+                  <b>Missing:</b> {(result.missing_skills || []).join(", ") || "—"}
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Reasons */}
-            {result.reason?.reasons?.length > 0 && (
-              <div style={styles.card}>
-                <h3 style={styles.cardTitle}>🔍 Match Analysis</h3>
-                {result.reason.reasons.map((r: string, i: number) => (
-                  <div key={i} style={{ ...styles.reason, color: r.startsWith("✓") ? "#276749" : "#c53030" }}>{r}</div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
+          {result.reasons?.length > 0 && (
+            <div style={s.card}>
+              <h3 style={s.cardTitle}>Match Analysis</h3>
+              {result.reasons.map((r: string, i: number) => (
+                <div
+                  key={i}
+                  style={{
+                    ...s.reason,
+                    color: r.startsWith("✓") ? "#065f46" : "#991b1b",
+                  }}
+                >
+                  {r}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </Layout>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  page: { display: "flex", minHeight: "100vh", background: "#f7f8fc" },
-  sidebar: { width: 220, background: "#1a1a2e", color: "#fff", padding: 24, display: "flex", flexDirection: "column" },
-  logo: { fontSize: 18, marginBottom: 32, color: "#a78bfa" },
-  navItem: { padding: "10px 12px", borderRadius: 8, cursor: "pointer", marginBottom: 4, fontSize: 14, color: "#cbd5e0" },
-  main: { flex: 1, padding: 32 },
-  heading: { fontSize: 24, marginBottom: 24, color: "#1a1a2e" },
-  card: { background: "#fff", borderRadius: 12, padding: 24, marginBottom: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" },
-  cardTitle: { fontSize: 16, fontWeight: 600, marginBottom: 16, color: "#1a1a2e" },
-  grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 14, color: "#444" },
-  overallScore: { fontSize: 48, fontWeight: 800, color: "#48bb78", textAlign: "center", marginBottom: 20 },
-  scoresGrid: { display: "flex", flexDirection: "column", gap: 12 },
-  scoreItem: { display: "flex", alignItems: "center", gap: 12 },
-  scoreLabel: { width: 70, fontSize: 13, color: "#666" },
-  scoreBar: { flex: 1, height: 8, background: "#e2e8f0", borderRadius: 4, overflow: "hidden" },
-  scoreBarFill: { height: "100%", background: "#4f46e5", borderRadius: 4, transition: "width 0.5s" },
-  scoreVal: { width: 45, fontSize: 13, fontWeight: 600, color: "#4f46e5", textAlign: "right" },
-  reason: { fontSize: 14, padding: "4px 0", borderBottom: "1px solid #f0f0f0" },
+const s: Record<string, React.CSSProperties> = {
   loading: { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" },
+  heading: { fontSize: 24, fontWeight: 700, marginBottom: 24, color: "#1a1a2e" },
+  card: {
+    background: "#fff",
+    borderRadius: 12,
+    padding: 24,
+    marginBottom: 20,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+  },
+  cardTitle: { fontSize: 16, fontWeight: 600, marginBottom: 16, color: "#1a1a2e" },
+  grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
+  infoItem: { fontSize: 14, color: "#374151", padding: "5px 0" },
+  infoKey: { fontWeight: 600 },
+  overallScore: {
+    fontSize: 52,
+    fontWeight: 800,
+    color: "#0f766e",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  barsWrap: { display: "flex", flexDirection: "column", gap: 12 },
+  barRow: { display: "flex", alignItems: "center", gap: 12 },
+  barLabel: { width: 70, fontSize: 13, color: "#6b7280" },
+  barTrack: { flex: 1, height: 8, background: "#e5e7eb", borderRadius: 4, overflow: "hidden" },
+  barFill: { height: "100%", background: "#0f766e", borderRadius: 4 },
+  barVal: { width: 40, fontSize: 13, fontWeight: 600, color: "#0f766e", textAlign: "right" },
+  reason: { fontSize: 14, padding: "5px 0", borderBottom: "1px solid #f3f4f6" },
 };

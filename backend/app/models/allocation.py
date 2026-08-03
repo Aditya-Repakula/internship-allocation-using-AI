@@ -13,8 +13,8 @@ class Allocation(Base):
     student_id = Column(Integer, ForeignKey("students.id"), unique=True, nullable=False)
     internship_id = Column(Integer, ForeignKey("internships.id"), nullable=False)
 
-    # AI Scores
-    match_score = Column(Float, nullable=False)          # overall weighted score 0-100
+    # AI Scores (0-100)
+    overall_match_score = Column(Float, nullable=False)
     skills_score = Column(Float, default=0.0)
     degree_score = Column(Float, default=0.0)
     branch_score = Column(Float, default=0.0)
@@ -22,10 +22,12 @@ class Allocation(Base):
     location_score = Column(Float, default=0.0)
     sector_score = Column(Float, default=0.0)
 
-    rank = Column(Integer)                               # rank among all students for this internship
-    allocation_reason = Column(Text)                     # JSON: matched/unmatched reasons
+    rank = Column(Integer)                                # rank within this internship
+    allocation_reason = Column(Text)                      # JSON: matched/missing skills + reasons
 
-    status = Column(String(20), default="allocated")     # allocated | completed | cancelled
+    # allocated | not_allocated
+    status = Column(String(20), default="allocated")
+
     allocated_at = Column(DateTime, default=datetime.utcnow)
 
     student = relationship("Student", back_populates="allocation")

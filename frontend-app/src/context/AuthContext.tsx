@@ -1,10 +1,13 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import api from "../services/api";
 
+/** Backend roles: student | admin. UI may label admin as "Company". */
+type Role = "student" | "admin";
+
 interface AuthContextType {
   token: string | null;
   role: string | null;
-  login: (email: string, password: string, role: "student" | "company") => Promise<void>;
+  login: (email: string, password: string, role: Role) => Promise<void>;
   logout: () => void;
 }
 
@@ -14,8 +17,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
   const [role, setRole] = useState<string | null>(localStorage.getItem("role"));
 
-  const login = async (email: string, password: string, role: "student" | "company") => {
-    const res = await api.post(`/api/auth/${role}/login`, { email, password });
+  const login = async (email: string, password: string, role: Role) => {
+    const endpoint = `/api/auth/${role}/login`;
+    const res = await api.post(endpoint, { email, password });
     localStorage.setItem("token", res.data.access_token);
     localStorage.setItem("role", role);
     setToken(res.data.access_token);

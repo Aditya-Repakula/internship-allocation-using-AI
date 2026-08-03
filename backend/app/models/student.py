@@ -28,19 +28,21 @@ class Student(Base):
     resume_status = Column(String(20), default="not_uploaded")  # not_uploaded | uploaded | parsed | confirmed
 
     # AI Extracted Fields (stored as JSON strings)
-    extracted_skills = Column(Text)       # ["Python", "SQL", ...]
-    confirmed_skills = Column(Text)       # student-edited version
-    extracted_projects = Column(Text)     # [{"name": ..., "description": ...}, ...]
+    extracted_skills = Column(Text)
+    confirmed_skills = Column(Text)
+    extracted_projects = Column(Text)
     extracted_certifications = Column(Text)
-    extracted_tools = Column(Text)        # technical tools
-    extracted_languages = Column(Text)    # programming languages
-    extracted_experience = Column(Text)   # work experience if any
+    extracted_tools = Column(Text)
+    extracted_languages = Column(Text)
+    extracted_experience = Column(Text)
 
     # AI Confirmation
     skills_confirmed = Column(Boolean, default=False)
 
     # Profile
-    profile_completion = Column(Float, default=0.0)  # 0-100 percentage
+    profile_completion = Column(Float, default=0.0)
     is_active = Column(Boolean, default=True)
 
+    # Relationships
+    applications = relationship("Application", back_populates="student")
     allocation = relationship("Allocation", back_populates="student", uselist=False)

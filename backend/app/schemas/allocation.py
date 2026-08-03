@@ -3,11 +3,21 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
+class ApplicationOut(BaseModel):
+    id: int
+    student_id: int
+    internship_id: int
+    status: str
+    applied_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AllocationOut(BaseModel):
     id: int
     student_id: int
     internship_id: int
-    match_score: float
+    overall_match_score: float
     skills_score: float
     degree_score: float
     branch_score: float
@@ -15,14 +25,8 @@ class AllocationOut(BaseModel):
     location_score: float
     sector_score: float
     rank: int | None
-    allocation_reason: str   # raw JSON string
+    allocation_reason: str | None
     status: str
     allocated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class AllocationReasonOut(BaseModel):
-    matched_skills: list[str]
-    unmatched_skills: list[str]
-    reasons: list[str]

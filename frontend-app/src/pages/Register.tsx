@@ -1,11 +1,21 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import api from "../services/api";
 
 export default function Register() {
   const navigate = useNavigate();
-  const [role, setRole] = useState<"student" | "company">("student");
-  const [form, setForm] = useState({ name: "", email: "", password: "", phone: "", industry: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    college: "",
+    degree: "",
+    branch: "",
+    cgpa: "",
+    preferred_location: "",
+    interested_sector: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -14,10 +24,13 @@ export default function Register() {
     setError("");
     setLoading(true);
     try {
-      const payload = role === "student"
-        ? { name: form.name, email: form.email, password: form.password, phone: form.phone }
-        : { name: form.name, email: form.email, password: form.password, industry: form.industry };
-      await api.post(`/api/auth/${role}/register`, payload);
+      await api.post("/api/auth/student/register", {
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        phone: form.phone || null,
+      });
+      // Optional profile fields after login — store message for user
       navigate("/");
     } catch (err: any) {
       setError(err.response?.data?.detail || "Registration failed");
@@ -27,48 +40,97 @@ export default function Register() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Create Account</h2>
-        <div style={styles.tabs}>
-          <button style={role === "student" ? styles.activeTab : styles.tab} onClick={() => setRole("student")}>Student</button>
-          <button style={role === "company" ? styles.activeTab : styles.tab} onClick={() => setRole("company")}>Company</button>
+    <div style={s.page}>
+      <div style={s.card}>
+        <div style={s.brand}>
+          <span style={s.brandIcon}>🎓</span>
+          <h1 style={s.brandTitle}>Student Registration</h1>
+          <p style={s.brandSub}>Create your applicant account</p>
         </div>
-        <form onSubmit={handleSubmit}>
-          <input style={styles.input} placeholder="Full Name" value={form.name}
-            onChange={e => setForm({ ...form, name: e.target.value })} required />
-          <input style={styles.input} type="email" placeholder="Email" value={form.email}
-            onChange={e => setForm({ ...form, email: e.target.value })} required />
-          <input style={styles.input} type="password" placeholder="Password" value={form.password}
-            onChange={e => setForm({ ...form, password: e.target.value })} required />
-          {role === "student" && (
-            <input style={styles.input} placeholder="Phone" value={form.phone}
-              onChange={e => setForm({ ...form, phone: e.target.value })} />
-          )}
-          {role === "company" && (
-            <input style={styles.input} placeholder="Industry" value={form.industry}
-              onChange={e => setForm({ ...form, industry: e.target.value })} />
-          )}
-          {error && <p style={styles.error}>{error}</p>}
-          <button style={styles.btn} type="submit" disabled={loading}>
-            {loading ? "Registering..." : "Register"}
+
+        <form onSubmit={handleSubmit} style={s.form}>
+          {(
+            [
+              ["Full Name *", "name", "text", "John Doe"],
+              ["Email *", "email", "email", "you@college.edu"],
+              ["Password *", "password", "password", "••••••••"],
+              ["Phone", "phone", "text", "+91 9876543210"],
+            ] as [string, string, string, string][]
+          ).map(([label, key, type, placeholder]) => (
+            <div key={key} style={s.field}>
+              <label style={s.label}>{label}</label>
+              <input
+                style={s.input}
+                type={type}
+                placeholder={placeholder}
+                value={(form as any)[key]}
+                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                required={label.includes("*")}
+              />
+            </div>
+          ))}
+
+          <p style={s.hint}>
+            After login, complete your profile (college, degree, branch, CGPA, preferences) and upload your resume.
+          </p>
+
+          {error && <div style={s.error}>{error}</div>}
+          <button style={s.btn} type="submit" disabled={loading}>
+            {loading ? "Creating account..." : "Create Account"}
           </button>
         </form>
-        <p style={styles.link}>Already have an account? <a href="/">Login</a></p>
+
+        <p style={s.footer}>
+          Already have an account? <Link to="/">Sign in</Link>
+        </p>
       </div>
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  container: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f0f2f5" },
-  card: { background: "#fff", padding: 40, borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.1)", width: 380 },
-  title: { textAlign: "center", marginBottom: 24, color: "#1a1a2e", fontSize: 22 },
-  tabs: { display: "flex", marginBottom: 20, borderRadius: 8, overflow: "hidden", border: "1px solid #e0e0e0" },
-  tab: { flex: 1, padding: "10px 0", border: "none", background: "#f5f5f5", cursor: "pointer", fontSize: 14 },
-  activeTab: { flex: 1, padding: "10px 0", border: "none", background: "#4f46e5", color: "#fff", cursor: "pointer", fontSize: 14 },
-  input: { width: "100%", padding: "10px 12px", marginBottom: 14, border: "1px solid #ddd", borderRadius: 8, fontSize: 14, boxSizing: "border-box" },
-  btn: { width: "100%", padding: "12px 0", background: "#4f46e5", color: "#fff", border: "none", borderRadius: 8, fontSize: 15, cursor: "pointer" },
-  error: { color: "#e53e3e", fontSize: 13, marginBottom: 10 },
-  link: { textAlign: "center", marginTop: 16, fontSize: 13, color: "#666" },
+const s: Record<string, React.CSSProperties> = {
+  page: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "linear-gradient(135deg, #0f766e 0%, #134e4a 55%, #1e3a5f 100%)",
+  },
+  card: {
+    background: "#fff",
+    padding: "40px 36px",
+    borderRadius: 16,
+    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+    width: 420,
+    maxWidth: "90vw",
+  },
+  brand: { textAlign: "center", marginBottom: 28 },
+  brandIcon: { fontSize: 40 },
+  brandTitle: { margin: "8px 0 4px", fontSize: 20, fontWeight: 700, color: "#1a1a2e" },
+  brandSub: { margin: 0, fontSize: 13, color: "#888" },
+  form: { display: "flex", flexDirection: "column", gap: 14 },
+  field: { display: "flex", flexDirection: "column", gap: 6 },
+  label: { fontSize: 13, fontWeight: 500, color: "#374151" },
+  input: { padding: "10px 14px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14 },
+  hint: { fontSize: 12, color: "#6b7280", margin: 0, lineHeight: 1.5 },
+  btn: {
+    padding: "12px 0",
+    background: "#0f766e",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    fontSize: 15,
+    fontWeight: 600,
+    cursor: "pointer",
+    marginTop: 4,
+  },
+  error: {
+    background: "#fef2f2",
+    color: "#dc2626",
+    padding: "10px 14px",
+    borderRadius: 8,
+    fontSize: 13,
+    border: "1px solid #fecaca",
+  },
+  footer: { textAlign: "center", marginTop: 20, fontSize: 13, color: "#6b7280" },
 };

@@ -1,13 +1,14 @@
+import logging
+
 import pytest
 import pytest_asyncio
-import logging
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+import app.models  # noqa: F401 — register ORM models on Base.metadata
+from app.core.database import Base, get_db
 from app.main import app
-from app.core.database import get_db
-from app.core.database import Base
 
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("huggingface_hub").setLevel(logging.WARNING)
@@ -26,13 +27,12 @@ async def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 async def setup_db():
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest_asyncio.fixture
@@ -43,23 +43,50 @@ async def client():
 
 @pytest_asyncio.fixture
 async def student_token(client):
-    await client.post("/api/auth/student/register", json={
-        "email": "test_student@test.com", "password": "test123",
-        "name": "Test Student", "college": "Test College", "branch": "AIML", "cgpa": 8.5
-    })
-    res = await client.post("/api/auth/student/login", json={
-        "email": "test_student@test.com", "password": "test123"
-    })
+    await client.post(
+        "/api/auth/student/register",
+        json={
+            "email": "test_student@test.com",
+            "password": "test123",
+            "name": "Test Student",
+            "phone": "9999999999",
+        },
+    )
+    res = await client.post(
+        "/api/auth/student/login",
+        json={"email": "test_student@test.com", "password": "test123"},
+    )
     return res.json()["access_token"]
 
 
 @pytest_asyncio.fixture
-async def company_token(client):
-    await client.post("/api/auth/company/register", json={
-        "email": "test_company@test.com", "password": "test123",
-        "name": "Test Company", "industry": "Technology"
-    })
-    res = await client.post("/api/auth/company/login", json={
-        "email": "test_company@test.com", "password": "test123"
-    })
+async def admin_token(client):
+    await client.post(
+        "/api/auth/admin/register",
+        json={
+            "email": "admin@test.com",
+            "password": "admin123",
+            "name": "Test Admin",
+        },
+    )
+    res = await client.post(
+        "/api/auth/admin/login",
+        json={"email": "admin@test.com", "password": "admin123"},
+    )
     return res.json()["access_token"]
+
+
+INTERNSHIP_PAYLOAD = {
+    "title": "AI/ML Intern",
+    "description": "Work on ML models",
+    "required_skills": ["Python", "Machine Learning"],
+    "preferred_degree": "B.Tech",
+    "preferred_branches": ["AIML", "CSE"],
+    "min_cgpa": 7.0,
+    "location": "Bangalore",
+    "mode": "onsite",
+    "seats": 2,
+    "sector": "AI/ML",
+    "duration": "3 months",
+    "status": "open",
+}

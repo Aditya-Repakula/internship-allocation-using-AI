@@ -3,17 +3,27 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_student_register(client):
-    res = await client.post("/api/auth/student/register", json={
-        "email": "new_student@test.com", "password": "test123",
-        "name": "New Student", "college": "ABC College", "branch": "CSE", "cgpa": 7.5
-    })
+    res = await client.post(
+        "/api/auth/student/register",
+        json={
+            "email": "new_student@test.com",
+            "password": "test123",
+            "name": "New Student",
+            "phone": "9999999999",
+        },
+    )
     assert res.status_code == 201
     assert res.json()["email"] == "new_student@test.com"
 
 
 @pytest.mark.asyncio
 async def test_student_register_duplicate(client):
-    data = {"email": "dup@test.com", "password": "test123", "name": "Dup", "college": "X", "branch": "CSE", "cgpa": 7.0}
+    data = {
+        "email": "dup@test.com",
+        "password": "test123",
+        "name": "Dup",
+        "phone": "111",
+    }
     await client.post("/api/auth/student/register", json=data)
     res = await client.post("/api/auth/student/register", json=data)
     assert res.status_code == 409
@@ -21,13 +31,18 @@ async def test_student_register_duplicate(client):
 
 @pytest.mark.asyncio
 async def test_student_login(client):
-    await client.post("/api/auth/student/register", json={
-        "email": "login_test@test.com", "password": "test123",
-        "name": "Login Test", "college": "X", "branch": "CSE", "cgpa": 7.0
-    })
-    res = await client.post("/api/auth/student/login", json={
-        "email": "login_test@test.com", "password": "test123"
-    })
+    await client.post(
+        "/api/auth/student/register",
+        json={
+            "email": "login_test@test.com",
+            "password": "test123",
+            "name": "Login Test",
+        },
+    )
+    res = await client.post(
+        "/api/auth/student/login",
+        json={"email": "login_test@test.com", "password": "test123"},
+    )
     assert res.status_code == 200
     assert "access_token" in res.json()
     assert res.json()["role"] == "student"
@@ -35,29 +50,46 @@ async def test_student_login(client):
 
 @pytest.mark.asyncio
 async def test_student_login_wrong_password(client):
-    res = await client.post("/api/auth/student/login", json={
-        "email": "login_test@test.com", "password": "wrongpass"
-    })
+    await client.post(
+        "/api/auth/student/register",
+        json={
+            "email": "wrongpw@test.com",
+            "password": "test123",
+            "name": "Wrong",
+        },
+    )
+    res = await client.post(
+        "/api/auth/student/login",
+        json={"email": "wrongpw@test.com", "password": "wrongpass"},
+    )
     assert res.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_company_register_and_login(client):
-    res = await client.post("/api/auth/company/register", json={
-        "email": "comp_login@test.com", "password": "test123",
-        "name": "Comp", "industry": "Tech"
-    })
+async def test_admin_register_and_login(client):
+    res = await client.post(
+        "/api/auth/admin/register",
+        json={
+            "email": "admin_login@test.com",
+            "password": "admin123",
+            "name": "Admin",
+        },
+    )
     assert res.status_code == 201
 
-    res = await client.post("/api/auth/company/login", json={
-        "email": "comp_login@test.com", "password": "test123"
-    })
+    res = await client.post(
+        "/api/auth/admin/login",
+        json={"email": "admin_login@test.com", "password": "admin123"},
+    )
     assert res.status_code == 200
-    assert res.json()["role"] == "company"
+    assert res.json()["role"] == "admin"
 
 
 @pytest.mark.asyncio
 async def test_student_me(client, student_token):
-    res = await client.get("/api/auth/student/me", headers={"Authorization": f"Bearer {student_token}"})
+    res = await client.get(
+        "/api/auth/student/me",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
     assert res.status_code == 200
     assert res.json()["email"] == "test_student@test.com"
