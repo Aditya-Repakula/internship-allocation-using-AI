@@ -18,6 +18,7 @@ export default function StudentResult() {
     );
 
   const published = result.allocated && result.results_published;
+  const rejected = result.status === "not_allocated";
 
   return (
     <Layout role="student">
@@ -25,13 +26,39 @@ export default function StudentResult() {
         My Internship Result
       </h1>
 
-      {!published ? (
+      {!published && !rejected ? (
         <div className="card">
           <h2 className="card-title">Results Pending</h2>
           <p className="muted" style={{ marginBottom: 0 }}>
             {result.message ||
               "Allocation is under process. Results will be announced by the company."}
           </p>
+        </div>
+      ) : rejected ? (
+        <div className="card" style={{ borderLeft: "4px solid var(--danger)", marginBottom: 20 }}>
+          <div className="row-between" style={{ marginBottom: 18 }}>
+            <h2 className="card-title" style={{ fontSize: 17 }}>Not Allocated</h2>
+            <StatusBadge status="not_allocated" />
+          </div>
+          <p className="muted" style={{ marginTop: 0 }}>
+            {result.message}
+          </p>
+          {result.internship && (
+            <div style={s.grid}>
+              {[
+                ["Role", result.internship.title],
+                ["Location", result.internship.location],
+                ["Mode", result.internship.mode],
+                ["Duration", result.internship.duration],
+                ["Sector", result.internship.sector],
+              ].map(([k, v]) => (
+                <div key={k} style={s.infoItem}>
+                  <div style={s.infoKey}>{k}</div>
+                  <div style={s.infoVal}>{v || "—"}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <>

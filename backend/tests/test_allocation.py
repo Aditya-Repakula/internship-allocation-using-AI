@@ -170,6 +170,90 @@ async def test_global_allocation_one_student_one_seat(client, student_token, adm
 
 
 @pytest.mark.asyncio
+async def test_rejected_applicant_sees_not_allocated_result(
+    client, student_token, admin_token
+):
+    """Every applicant must see a final result after publish — including
+    students who applied but were not selected."""
+    await _prepare_student(client, student_token)
+
+    await client.post(
+        "/api/auth/student/register",
+        json={
+            "email": "second_student@test.com",
+            "password": "test123",
+            "name": "Second Student",
+            "phone": "8888888888",
+        },
+    )
+    login = await client.post(
+        "/api/auth/student/login",
+        json={"email": "second_student@test.com", "password": "test123"},
+    )
+    second_token = login.json()["access_token"]
+    await _prepare_student(client, second_token)
+
+    internship = await _create_open_internship(client, admin_token, seats=1)
+    iid = internship["id"]
+
+    await client.post(
+        f"/api/student/apply/{iid}",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+    await client.post(
+        f"/api/student/apply/{iid}",
+        headers={"Authorization": f"Bearer {second_token}"},
+    )
+
+    await client.patch(
+        f"/api/admin/internships/{iid}/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "closed"},
+    )
+    alloc = await client.post(
+        f"/api/admin/internships/{iid}/run-allocation",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert alloc.status_code == 200
+
+    pub = await client.post(
+        f"/api/admin/internships/{iid}/publish-results",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert pub.status_code == 200
+
+    r1 = (
+        await client.get(
+            "/api/student/result",
+            headers={"Authorization": f"Bearer {student_token}"},
+        )
+    ).json()
+    r2 = (
+        await client.get(
+            "/api/student/result",
+            headers={"Authorization": f"Bearer {second_token}"},
+        )
+    ).json()
+
+    statuses = {r1["status"], r2["status"]}
+    assert statuses == {"allocated", "not_allocated"}
+
+    rejected = next(r for r in (r1, r2) if r["status"] == "not_allocated")
+    assert rejected["allocated"] is False
+    assert rejected["results_published"] is True
+    assert rejected["internship"]["title"] == "AI/ML Intern"
+    assert "not selected" in rejected["message"]
+
+    dash = (
+        await client.get(
+            "/api/student/dashboard",
+            headers={"Authorization": f"Bearer {second_token}"},
+        )
+    ).json()
+    assert dash["result"]["status"] == "not_allocated"
+
+
+@pytest.mark.asyncio
 async def test_ai_skill_extraction():
     from app.ai.skill_extractor import extract_skills_from_text
 

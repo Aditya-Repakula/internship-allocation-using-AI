@@ -133,6 +133,22 @@ export default function StudentDashboard() {
             View Full Result
           </button>
         </div>
+      ) : result?.status === "not_allocated" ? (
+        <div className="card" style={{ borderLeft: "4px solid var(--danger)", marginBottom: 20 }}>
+          <div className="row-between" style={{ marginBottom: 14 }}>
+            <h2 className="card-title">Not Allocated</h2>
+            <StatusBadge status="not_allocated" />
+          </div>
+          <p className="card-sub">{result?.message}</p>
+          <div className="row-gap">
+            <button className="btn btn-secondary" onClick={() => navigate("/student/result")}>
+              View Full Result
+            </button>
+            <button className="btn btn-secondary" onClick={() => navigate("/student/internships")}>
+              Browse Other Internships ({stats?.open_internships_available ?? 0} open)
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="card" style={{ borderLeft: "4px solid var(--warning)", marginBottom: 20 }}>
           <h2 className="card-title">Allocation Status</h2>

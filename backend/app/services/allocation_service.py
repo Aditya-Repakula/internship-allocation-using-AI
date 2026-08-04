@@ -251,8 +251,11 @@ async def get_student_allocation(db: AsyncSession, student_id: int) -> Allocatio
 
 async def get_student_result_if_published(db: AsyncSession, student_id: int) -> dict:
     """
-    Returns allocation result only if results are published.
-    Before publication, students see a pending message.
+    Returns the allocation result once results are published.
+    Every applicant gets a final answer:
+      - allocated      → full allocation breakdown
+      - not_allocated  → rejection notice for the published internship
+      - pending        → still under process (results not published yet)
     """
     allocation = await get_student_allocation(db, student_id)
 
@@ -260,15 +263,52 @@ async def get_student_result_if_published(db: AsyncSession, student_id: int) -> 
         app_result = await db.execute(
             select(Application).where(Application.student_id == student_id)
         )
-        has_applications = app_result.scalar_one_or_none() is not None
+        applications = list(app_result.scalars().all())
+
+        if not applications:
+            return {
+                "status": "no_applications",
+                "allocated": False,
+                "results_published": False,
+                "message": "You have not applied to any internship yet.",
+            }
+
+        # An application only becomes "not_allocated" once the company
+        # publishes results, so this student has a final answer to show.
+        rejected = [a for a in applications if a.status == "not_allocated"]
+        if rejected:
+            i_result = await db.execute(
+                select(Internship).where(
+                    Internship.id.in_({a.internship_id for a in rejected})
+                )
+            )
+            internships = {i.id: i for i in i_result.scalars().all()}
+            for a in rejected:
+                internship = internships.get(a.internship_id)
+                if internship and internship.results_published:
+                    return {
+                        "status": "not_allocated",
+                        "allocated": False,
+                        "results_published": True,
+                        "message": (
+                            f"Unfortunately, you were not selected for "
+                            f"{internship.title}."
+                        ),
+                        "internship": {
+                            "id": internship.id,
+                            "title": internship.title,
+                            "location": internship.location,
+                            "mode": internship.mode,
+                            "duration": internship.duration,
+                            "sector": internship.sector,
+                        },
+                    }
+
         return {
+            "status": "pending",
             "allocated": False,
             "results_published": False,
-            "message": (
-                "Allocation is under process. Results will be announced by the company."
-                if has_applications
-                else "You have not applied to any internship yet."
-            ),
+            "message": "Allocation is under process. Results will be announced by the company.",
         }
 
     i_result = await db.execute(
@@ -293,6 +333,7 @@ async def get_student_result_if_published(db: AsyncSession, student_id: int) -> 
             pass
 
     return {
+        "status": "allocated",
         "allocated": True,
         "results_published": True,
         "company_name": settings.COMPANY_NAME,
