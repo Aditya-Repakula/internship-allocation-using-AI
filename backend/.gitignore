@@ -1,0 +1,24 @@
+# Local secrets & config — never commit
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Test / cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded resumes
+uploads/
+
+# Logs
+*.log

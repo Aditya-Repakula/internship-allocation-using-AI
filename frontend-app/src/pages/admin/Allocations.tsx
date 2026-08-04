@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import Layout from "../../components/Layout";
+import StatusBadge from "../../components/StatusBadge";
 import api from "../../services/api";
 
 export default function AdminAllocations() {
   const [internships, setInternships] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<any | null>(null);
-  const [msg, setMsg] = useState("");
+  const [msg, setMsg] = useState<string>("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api.get("/api/admin/internships").then((r) => {
@@ -27,108 +29,158 @@ export default function AdminAllocations() {
       .catch(() => setDetail(null));
   }, [selectedId]);
 
+  const reload = async (id: number) => {
+    const r = await api.get(`/api/admin/internships/${id}/allocations`);
+    setDetail(r.data);
+    const list = await api.get("/api/admin/internships");
+    setInternships(list.data);
+  };
+
   const publish = async () => {
     if (!selectedId) return;
     if (!confirm("Publish results to students?")) return;
     setMsg("");
+    setBusy(true);
     try {
       await api.post(`/api/admin/internships/${selectedId}/publish-results`);
       setMsg("Results published");
-      const r = await api.get(`/api/admin/internships/${selectedId}/allocations`);
-      setDetail(r.data);
-      const list = await api.get("/api/admin/internships");
-      setInternships(list.data);
+      await reload(selectedId);
     } catch (err: any) {
       setMsg(err.response?.data?.detail || "Publish failed");
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <Layout role="admin">
-      <h2 style={s.heading}>Allocation Review</h2>
-      <p style={s.sub}>
-        Review AI rankings and scores before publishing. Students cannot see results until you publish.
-      </p>
+      <div className="row-between" style={{ marginBottom: 22 }}>
+        <div>
+          <h1 className="page-title">Allocation Review</h1>
+          <p className="page-sub">
+            Review AI rankings and scores before publishing. Students cannot see results until you publish.
+          </p>
+        </div>
+        <span className="badge" style={{ background: "var(--violet-soft)", color: "#5b21b6" }}>
+          AI Engine
+        </span>
+      </div>
 
-      {msg && <div style={s.banner}>{msg}</div>}
+      {msg && <div className="alert alert-success">{msg}</div>}
 
       <div style={s.row}>
         <div style={s.side}>
-          <h3 style={s.cardTitle}>Internships</h3>
-          {internships.map((i) => (
-            <button
-              key={i.id}
-              style={{
-                ...s.sideItem,
-                ...(selectedId === i.id ? s.sideActive : {}),
-              }}
-              onClick={() => setSelectedId(i.id)}
-            >
-              <div style={{ fontWeight: 600 }}>{i.title}</div>
-              <div style={{ fontSize: 12, opacity: 0.8 }}>{i.status}</div>
-            </button>
-          ))}
+          <h3 style={s.sideTitle}>Internships</h3>
+          {internships.length === 0 ? (
+            <p className="muted small">No internships yet.</p>
+          ) : (
+            internships.map((i) => (
+              <button
+                key={i.id}
+                type="button"
+                style={{ ...s.sideItem, ...(selectedId === i.id ? s.sideActive : {}) }}
+                onClick={() => setSelectedId(i.id)}
+              >
+                <span style={{ fontWeight: 600 }}>{i.title}</span>
+                <span style={s.sideStatus}>{i.status}</span>
+              </button>
+            ))
+          )}
         </div>
 
-        <div style={s.main}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           {!detail ? (
-            <div style={s.card}>
-              <p style={{ color: "#6b7280" }}>Select an internship to review allocations.</p>
+            <div className="card">
+              <p className="muted" style={{ margin: 0 }}>
+                Select an internship to review its allocations.
+              </p>
             </div>
           ) : (
-            <div style={s.card}>
-              <div style={s.headerRow}>
+            <div className="card">
+              <div className="row-between" style={{ marginBottom: 16 }}>
                 <div>
-                  <h3 style={s.cardTitle}>{detail.title}</h3>
+                  <h3 style={s.detailTitle}>{detail.title}</h3>
                   <div style={s.meta}>
-                    Applicants: {detail.total_applicants} · Seats: {detail.seats_filled}/
-                    {detail.seats} · Status: {detail.status} · Results:{" "}
-                    {detail.results_published ? "PUBLISHED" : "NOT PUBLISHED"}
+                    {detail.total_applicants} applicants · {detail.seats_filled}/{detail.seats} seats filled ·{" "}
+                    <StatusBadge status={detail.status} /> ·{" "}
+                    {detail.results_published ? (
+                      <span className="badge" style={{ background: "var(--success-soft)", color: "#065f46" }}>
+                        Published
+                      </span>
+                    ) : (
+                      <span className="badge" style={{ background: "var(--warning-soft)", color: "#92400e" }}>
+                        Not published
+                      </span>
+                    )}
                   </div>
                 </div>
                 {detail.status === "allocated" && !detail.results_published && (
-                  <button style={s.publishBtn} onClick={publish}>
-                    Publish Results
+                  <button className="btn btn-accent" onClick={publish} disabled={busy}>
+                    {busy ? "Publishing..." : "Publish Results"}
                   </button>
                 )}
               </div>
 
               {detail.allocated_students.length === 0 ? (
-                <p style={{ color: "#6b7280" }}>
+                <p className="muted" style={{ margin: 0 }}>
                   No allocations yet. Close applications and run AI allocation first.
                 </p>
               ) : (
-                <table style={s.table}>
-                  <thead>
-                    <tr>
-                      {["Rank", "Student", "CGPA", "Overall", "Skills", "Matched", "Missing"].map(
-                        (h) => (
-                          <th key={h} style={s.th}>
-                            {h}
-                          </th>
-                        )
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detail.allocated_students.map((st: any) => (
-                      <tr key={st.student_id}>
-                        <td style={s.td}>#{st.rank}</td>
-                        <td style={s.td}>
-                          <div style={{ fontWeight: 600 }}>{st.name}</div>
-                          <div style={{ fontSize: 12, color: "#9ca3af" }}>{st.email}</div>
-                        </td>
-                        <td style={s.td}>{st.cgpa ?? "—"}</td>
-                        <td style={{ ...s.td, fontWeight: 700, color: "#0f766e" }}>
-                          {st.match_scores.overall}%
-                        </td>
-                        <td style={s.td}>{st.match_scores.skills}%</td>
-                        <td style={s.td}>{(st.matched_skills || []).join(", ") || "—"}</td>
-                        <td style={s.td}>{(st.missing_skills || []).join(", ") || "—"}</td>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        {["Rank", "Student", "CGPA", "Overall", "Skills", "Matched", "Missing"].map((h) => (
+                          <th key={h}>{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {detail.allocated_students.map((st: any) => (
+                        <tr key={st.student_id}>
+                          <td>
+                            <span style={s.rank}>#{st.rank}</span>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 600, color: "var(--text)" }}>{st.name}</div>
+                            <div className="small muted">{st.email}</div>
+                          </td>
+                          <td>{st.cgpa ?? "—"}</td>
+                          <td>
+                            <span style={s.overall}>{st.match_scores.overall}%</span>
+                          </td>
+                          <td>{st.match_scores.skills}%</td>
+                          <td>
+                            {(st.matched_skills || []).length ? (
+                              <div className="tags" style={{ gap: 4 }}>
+                                {(st.matched_skills as string[]).map((sk) => (
+                                  <span key={sk} className="tag" style={{ background: "var(--success-soft)", color: "#065f46", padding: "2px 8px", fontSize: 11.5 }}>
+                                    {sk}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="muted small">—</span>
+                            )}
+                          </td>
+                          <td>
+                            {(st.missing_skills || []).length ? (
+                              <div className="tags" style={{ gap: 4 }}>
+                                {(st.missing_skills as string[]).map((sk) => (
+                                  <span key={sk} className="tag" style={{ background: "var(--danger-soft)", color: "#b91c1c", padding: "2px 8px", fontSize: 11.5 }}>
+                                    {sk}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="muted small">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}
@@ -139,72 +191,53 @@ export default function AdminAllocations() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  heading: { fontSize: 24, fontWeight: 700, margin: "0 0 4px", color: "#1a1a2e" },
-  sub: { color: "#6b7280", marginBottom: 20, fontSize: 14 },
-  banner: {
-    background: "#ecfdf5",
-    border: "1px solid #a7f3d0",
-    color: "#065f46",
-    padding: "10px 14px",
-    borderRadius: 8,
-    marginBottom: 16,
-    fontSize: 14,
-  },
   row: { display: "flex", gap: 20, alignItems: "flex-start" },
   side: {
-    width: 240,
+    width: 250,
     flexShrink: 0,
-    background: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius)",
+    padding: 14,
+    boxShadow: "var(--shadow-sm)",
   },
+  sideTitle: { fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)", margin: "0 4px 10px" },
   sideItem: {
-    display: "block",
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
     width: "100%",
     textAlign: "left",
     padding: "10px 12px",
     border: "none",
     background: "transparent",
-    borderRadius: 8,
+    borderRadius: 10,
     cursor: "pointer",
     marginBottom: 4,
-    color: "#374151",
+    color: "var(--text-2)",
+    fontSize: 13.5,
+    transition: "background 0.12s ease",
   },
-  sideActive: { background: "#ccfbf1", color: "#115e59" },
-  main: { flex: 1 },
-  card: {
-    background: "#fff",
-    borderRadius: 12,
-    padding: 24,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+  sideActive: {
+    background: "var(--primary-soft)",
+    color: "var(--primary-600)",
+    boxShadow: "inset 0 0 0 1px rgba(79,70,229,0.25)",
   },
-  cardTitle: { fontSize: 16, fontWeight: 600, margin: "0 0 8px", color: "#1a1a2e" },
-  headerRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16,
-    gap: 12,
-  },
-  meta: { fontSize: 13, color: "#6b7280" },
-  publishBtn: {
-    padding: "9px 18px",
-    background: "#7c3aed",
-    color: "#fff",
-    border: "none",
+  sideStatus: { fontSize: 11.5, color: "var(--text-3)", textTransform: "capitalize" },
+  detailTitle: { fontSize: 18, fontWeight: 800, color: "var(--text)", margin: "0 0 4px" },
+  meta: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-2)", flexWrap: "wrap" },
+  rank: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 34,
+    height: 26,
+    padding: "0 8px",
     borderRadius: 8,
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 600,
+    fontSize: 12.5,
+    fontWeight: 700,
+    background: "var(--primary-soft)",
+    color: "var(--primary-600)",
   },
-  table: { width: "100%", borderCollapse: "collapse" },
-  th: {
-    textAlign: "left",
-    fontSize: 12,
-    color: "#6b7280",
-    padding: "8px 10px",
-    borderBottom: "1px solid #e5e7eb",
-  },
-  td: { padding: "10px", fontSize: 13, color: "#374151", borderBottom: "1px solid #f3f4f6", verticalAlign: "top" },
+  overall: { fontSize: 15, fontWeight: 800, color: "var(--accent)" },
 };

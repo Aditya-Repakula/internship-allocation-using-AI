@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
@@ -12,7 +13,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import AdminInternships from "./pages/admin/Internships";
 import AdminAllocations from "./pages/admin/Allocations";
 
-function ProtectedRoute({ children, role }: { children: JSX.Element; role: string }) {
+function ProtectedRoute({ children, role }: { children: ReactNode; role: string }) {
   const { token, role: userRole } = useAuth();
   if (!token) return <Navigate to="/" />;
   if (userRole !== role) return <Navigate to="/" />;

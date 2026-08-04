@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../services/api";
+import AuthLayout from "../components/AuthLayout";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -9,12 +10,6 @@ export default function Register() {
     email: "",
     password: "",
     phone: "",
-    college: "",
-    degree: "",
-    branch: "",
-    cgpa: "",
-    preferred_location: "",
-    interested_sector: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,7 +25,6 @@ export default function Register() {
         password: form.password,
         phone: form.phone || null,
       });
-      // Optional profile fields after login — store message for user
       navigate("/");
     } catch (err: any) {
       setError(err.response?.data?.detail || "Registration failed");
@@ -40,42 +34,42 @@ export default function Register() {
   };
 
   return (
-    <div style={s.page}>
+    <AuthLayout>
       <div style={s.card}>
-        <div style={s.brand}>
-          <span style={s.brandIcon}>🎓</span>
-          <h1 style={s.brandTitle}>Student Registration</h1>
-          <p style={s.brandSub}>Create your applicant account</p>
+        <div style={s.cardHead}>
+          <h2 style={s.cardTitle}>Create your account</h2>
+          <p style={s.cardSub}>Register as a student to start applying for internships.</p>
         </div>
 
         <form onSubmit={handleSubmit} style={s.form}>
           {(
             [
-              ["Full Name *", "name", "text", "John Doe"],
-              ["Email *", "email", "email", "you@college.edu"],
-              ["Password *", "password", "password", "••••••••"],
-              ["Phone", "phone", "text", "+91 9876543210"],
-            ] as [string, string, string, string][]
-          ).map(([label, key, type, placeholder]) => (
+              ["Full name", "name", "text", "John Doe", true],
+              ["Email address", "email", "email", "you@college.edu", true],
+              ["Password", "password", "password", "At least 6 characters", true],
+              ["Phone (optional)", "phone", "tel", "+91 98765 43210", false],
+            ] as [string, string, string, string, boolean][]
+          ).map(([label, key, type, placeholder, required]) => (
             <div key={key} style={s.field}>
               <label style={s.label}>{label}</label>
               <input
-                style={s.input}
                 type={type}
                 placeholder={placeholder}
                 value={(form as any)[key]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                required={label.includes("*")}
+                required={required}
               />
             </div>
           ))}
 
-          <p style={s.hint}>
-            After login, complete your profile (college, degree, branch, CGPA, preferences) and upload your resume.
-          </p>
+          <div className="alert alert-info" style={{ marginTop: 4 }}>
+            After signing in, complete your profile and upload your resume — the AI engine
+            extracts your skills automatically.
+          </div>
 
-          {error && <div style={s.error}>{error}</div>}
-          <button style={s.btn} type="submit" disabled={loading}>
+          {error && <div className="alert alert-error">{error}</div>}
+
+          <button className="btn" type="submit" disabled={loading} style={{ width: "100%", padding: "12px 0" }}>
             {loading ? "Creating account..." : "Create Account"}
           </button>
         </form>
@@ -84,53 +78,17 @@ export default function Register() {
           Already have an account? <Link to="/">Sign in</Link>
         </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "linear-gradient(135deg, #0f766e 0%, #134e4a 55%, #1e3a5f 100%)",
-  },
-  card: {
-    background: "#fff",
-    padding: "40px 36px",
-    borderRadius: 16,
-    boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-    width: 420,
-    maxWidth: "90vw",
-  },
-  brand: { textAlign: "center", marginBottom: 28 },
-  brandIcon: { fontSize: 40 },
-  brandTitle: { margin: "8px 0 4px", fontSize: 20, fontWeight: 700, color: "#1a1a2e" },
-  brandSub: { margin: 0, fontSize: 13, color: "#888" },
-  form: { display: "flex", flexDirection: "column", gap: 14 },
-  field: { display: "flex", flexDirection: "column", gap: 6 },
-  label: { fontSize: 13, fontWeight: 500, color: "#374151" },
-  input: { padding: "10px 14px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14 },
-  hint: { fontSize: 12, color: "#6b7280", margin: 0, lineHeight: 1.5 },
-  btn: {
-    padding: "12px 0",
-    background: "#0f766e",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    fontSize: 15,
-    fontWeight: 600,
-    cursor: "pointer",
-    marginTop: 4,
-  },
-  error: {
-    background: "#fef2f2",
-    color: "#dc2626",
-    padding: "10px 14px",
-    borderRadius: 8,
-    fontSize: 13,
-    border: "1px solid #fecaca",
-  },
-  footer: { textAlign: "center", marginTop: 20, fontSize: 13, color: "#6b7280" },
+  card: { width: 400, maxWidth: "100%" },
+  cardHead: { marginBottom: 22 },
+  cardTitle: { fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px", color: "var(--text)" },
+  cardSub: { fontSize: 13.5, color: "var(--text-3)", margin: 0 },
+  form: { display: "flex", flexDirection: "column", gap: 0 },
+  field: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 },
+  label: { fontSize: 12.5, fontWeight: 600, color: "var(--text-2)" },
+  footer: { textAlign: "center", marginTop: 20, fontSize: 13, color: "var(--text-3)" },
 };

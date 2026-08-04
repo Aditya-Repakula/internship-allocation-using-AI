@@ -2,62 +2,113 @@ import { useEffect, useState } from "react";
 import Layout from "../../components/Layout";
 import api from "../../services/api";
 
-const fields: [string, string][] = [
-  ["College", "college"], ["Degree", "degree"], ["Branch", "branch"],
-  ["CGPA", "cgpa"], ["Preferred Location", "preferred_location"], ["Interested Sector", "interested_sector"],
+const fields: [string, string, string][] = [
+  ["College", "college", "text"],
+  ["Degree", "degree", "text"],
+  ["Branch", "branch", "text"],
+  ["CGPA", "cgpa", "number"],
+  ["Preferred Location", "preferred_location", "text"],
+  ["Interested Sector", "interested_sector", "text"],
 ];
 
 export default function StudentProfile() {
   const [profile, setProfile] = useState<any>(null);
-  const [form, setForm] = useState({ college: "", degree: "", branch: "", cgpa: "", preferred_location: "", interested_sector: "" });
+  const [form, setForm] = useState({
+    college: "",
+    degree: "",
+    branch: "",
+    cgpa: "",
+    preferred_location: "",
+    interested_sector: "",
+  });
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get("/api/student/profile").then(r => {
+    api.get("/api/student/profile").then((r) => {
       setProfile(r.data);
       setForm({
-        college: r.data.college || "", degree: r.data.degree || "", branch: r.data.branch || "",
-        cgpa: r.data.cgpa || "", preferred_location: r.data.preferred_location || "", interested_sector: r.data.interested_sector || "",
+        college: r.data.college || "",
+        degree: r.data.degree || "",
+        branch: r.data.branch || "",
+        cgpa: r.data.cgpa || "",
+        preferred_location: r.data.preferred_location || "",
+        interested_sector: r.data.interested_sector || "",
       });
     });
   }, []);
 
   const handleSave = async () => {
-    await api.put("/api/student/profile", { ...form, cgpa: parseFloat(form.cgpa) || null });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaving(true);
+    try {
+      await api.put("/api/student/profile", {
+        ...form,
+        cgpa: parseFloat(form.cgpa) || null,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (!profile) return <div style={s.loading}>Loading...</div>;
+  if (!profile)
+    return (
+      <div className="loading">
+        <div className="spinner" /> Loading profile...
+      </div>
+    );
+
+  const pct = profile.profile_completion || 0;
 
   return (
     <Layout role="student">
-      <h2 style={s.heading}>My Profile</h2>
+      <h1 className="page-title" style={{ marginBottom: 22 }}>
+        My Profile
+      </h1>
 
-      <div style={s.card}>
-        <div style={s.avatarRow}>
-          <div style={s.avatar}>{profile.name?.[0]?.toUpperCase()}</div>
-          <div>
-            <div style={s.name}>{profile.name}</div>
-            <div style={s.email}>{profile.email}</div>
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="row-between">
+          <div style={s.avatarRow}>
+            <div style={s.avatar}>{profile.name?.[0]?.toUpperCase()}</div>
+            <div>
+              <div style={s.name}>{profile.name}</div>
+              <div style={s.email}>{profile.email}</div>
+              <div style={s.phone}>{profile.phone || "No phone added"}</div>
+            </div>
           </div>
-          <div style={s.badge}>{profile.profile_completion}% Complete</div>
+          <div style={s.progress}>
+            <div style={s.progressHead}>
+              <span className="small muted">Profile completion</span>
+              <span style={s.progressPct}>{pct}%</span>
+            </div>
+            <div style={s.track}>
+              <div style={{ ...s.fill, width: `${pct}%` }} />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div style={s.card}>
-        <h3 style={s.cardTitle}>Academic Information</h3>
-        <div style={s.grid}>
-          {fields.map(([label, key]) => (
-            <div key={key} style={s.field}>
-              <label style={s.label}>{label}</label>
-              <input style={s.input} value={(form as any)[key]}
-                onChange={e => setForm({ ...form, [key]: e.target.value })} />
+      <div className="card">
+        <h2 className="card-title">Academic & Preferences</h2>
+        <p className="card-sub">
+          These details feed into the AI matching engine alongside your skills.
+        </p>
+        <div className="form-grid">
+          {fields.map(([label, key, type]) => (
+            <div key={key} className="field">
+              <label>{label}</label>
+              <input
+                type={type}
+                step={key === "cgpa" ? "0.1" : undefined}
+                value={(form as any)[key]}
+                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+              />
             </div>
           ))}
         </div>
-        <button style={s.btn} onClick={handleSave}>
-          {saved ? "✅ Saved!" : "Save Profile"}
+        <button className="btn" onClick={handleSave} disabled={saving}>
+          {saving ? "Saving..." : saved ? "Saved" : "Save Profile"}
         </button>
       </div>
     </Layout>
@@ -65,18 +116,26 @@ export default function StudentProfile() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  loading: { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" },
-  heading: { fontSize: 24, fontWeight: 700, marginBottom: 24, color: "#1a1a2e" },
-  card: { background: "#fff", borderRadius: 12, padding: 24, marginBottom: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" },
   avatarRow: { display: "flex", alignItems: "center", gap: 16 },
-  avatar: { width: 56, height: 56, borderRadius: "50%", background: "#4f46e5", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, flexShrink: 0 },
-  name: { fontSize: 18, fontWeight: 600, color: "#1a1a2e" },
-  email: { fontSize: 13, color: "#6b7280", marginTop: 2 },
-  badge: { marginLeft: "auto", background: "#ede9fe", color: "#5b21b6", padding: "4px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600 },
-  cardTitle: { fontSize: 16, fontWeight: 600, marginBottom: 16, color: "#1a1a2e" },
-  grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 },
-  field: { display: "flex", flexDirection: "column", gap: 5 },
-  label: { fontSize: 12, fontWeight: 500, color: "#6b7280" },
-  input: { padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14 },
-  btn: { padding: "10px 24px", background: "#4f46e5", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 500 },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 24,
+    fontWeight: 800,
+    color: "#fff",
+    background: "linear-gradient(135deg, #6366f1, #0ea5e9)",
+    flexShrink: 0,
+  },
+  name: { fontSize: 18, fontWeight: 700, color: "var(--text)" },
+  email: { fontSize: 13, color: "var(--text-2)", marginTop: 2 },
+  phone: { fontSize: 12.5, color: "var(--text-3)", marginTop: 1 },
+  progress: { width: 220, maxWidth: "45%" },
+  progressHead: { display: "flex", justifyContent: "space-between", marginBottom: 6 },
+  progressPct: { fontSize: 12.5, fontWeight: 700, color: "var(--primary)" },
+  track: { height: 8, borderRadius: 999, background: "var(--surface-2)", border: "1px solid var(--border)", overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #6366f1, #0ea5e9)", transition: "width 0.4s ease" },
 };

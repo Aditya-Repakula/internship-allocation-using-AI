@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Layout from "../../components/Layout";
+import StatusBadge from "../../components/StatusBadge";
 import api from "../../services/api";
 
 export default function StudentResult() {
@@ -9,24 +10,36 @@ export default function StudentResult() {
     api.get("/api/student/result").then((r) => setResult(r.data));
   }, []);
 
-  if (!result) return <div style={s.loading}>Loading...</div>;
+  if (!result)
+    return (
+      <div className="loading">
+        <div className="spinner" /> Loading result...
+      </div>
+    );
+
+  const published = result.allocated && result.results_published;
 
   return (
     <Layout role="student">
-      <h2 style={s.heading}>My Internship Result</h2>
+      <h1 className="page-title" style={{ marginBottom: 22 }}>
+        My Internship Result
+      </h1>
 
-      {!result.allocated || !result.results_published ? (
-        <div style={s.card}>
-          <h3 style={s.cardTitle}>Results Pending</h3>
-          <p style={{ color: "#6b7280" }}>
+      {!published ? (
+        <div className="card">
+          <h2 className="card-title">Results Pending</h2>
+          <p className="muted" style={{ marginBottom: 0 }}>
             {result.message ||
               "Allocation is under process. Results will be announced by the company."}
           </p>
         </div>
       ) : (
         <>
-          <div style={{ ...s.card, borderLeft: "4px solid #10b981" }}>
-            <h3 style={s.cardTitle}>Allocated Internship</h3>
+          <div className="card" style={{ borderLeft: "4px solid var(--success)", marginBottom: 20 }}>
+            <div className="row-between" style={{ marginBottom: 18 }}>
+              <h2 className="card-title" style={{ fontSize: 17 }}>Allocated Internship</h2>
+              <StatusBadge status="allocated" />
+            </div>
             <div style={s.grid}>
               {[
                 ["Company", result.company_name],
@@ -34,20 +47,27 @@ export default function StudentResult() {
                 ["Location", result.internship.location],
                 ["Mode", result.internship.mode],
                 ["Duration", result.internship.duration],
+                ["Sector", result.internship.sector],
+                ["Your Rank", `#${result.allocation.rank}`],
                 ["Status", result.allocation.status],
-                ["Rank", `#${result.allocation.rank}`],
               ].map(([k, v]) => (
                 <div key={k} style={s.infoItem}>
-                  <span style={s.infoKey}>{k}:</span> {v || "—"}
+                  <div style={s.infoKey}>{k}</div>
+                  <div style={s.infoVal}>{v || "—"}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div style={s.card}>
-            <h3 style={s.cardTitle}>Match Score Breakdown</h3>
-            <div style={s.overallScore}>{result.match_scores.overall}%</div>
-            <div style={s.barsWrap}>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div className="row-between" style={{ marginBottom: 20 }}>
+              <h2 className="card-title">Match Score Breakdown</h2>
+              <div style={s.overall}>
+                {result.match_scores.overall}
+                <span style={{ fontSize: 18, fontWeight: 600 }}>%</span>
+              </div>
+            </div>
+            <div style={s.bars}>
               {[
                 ["Skills", result.match_scores.skills],
                 ["Degree", result.match_scores.degree],
@@ -68,33 +88,73 @@ export default function StudentResult() {
           </div>
 
           {(result.matched_skills?.length > 0 || result.missing_skills?.length > 0) && (
-            <div style={s.card}>
-              <h3 style={s.cardTitle}>Skills Analysis</h3>
-              <div style={s.grid}>
+            <div className="card" style={{ marginBottom: 20 }}>
+              <h2 className="card-title">Skills Analysis</h2>
+              <div style={s.twoCol}>
                 <div>
-                  <b>Matched:</b> {(result.matched_skills || []).join(", ") || "—"}
+                  <div style={s.skillLabel}>Matched</div>
+                  <div className="tags">
+                    {(result.matched_skills || []).length ? (
+                      (result.matched_skills as string[]).map((sk) => (
+                        <span key={sk} className="tag" style={{ background: "var(--success-soft)", color: "#065f46" }}>
+                          {sk}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="muted small">None</span>
+                    )}
+                  </div>
                 </div>
                 <div>
-                  <b>Missing:</b> {(result.missing_skills || []).join(", ") || "—"}
+                  <div style={s.skillLabel}>Missing</div>
+                  <div className="tags">
+                    {(result.missing_skills || []).length ? (
+                      (result.missing_skills as string[]).map((sk) => (
+                        <span key={sk} className="tag" style={{ background: "var(--danger-soft)", color: "#b91c1c" }}>
+                          {sk}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="muted small">None</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
           {result.reasons?.length > 0 && (
-            <div style={s.card}>
-              <h3 style={s.cardTitle}>Match Analysis</h3>
-              {result.reasons.map((r: string, i: number) => (
-                <div
-                  key={i}
-                  style={{
-                    ...s.reason,
-                    color: r.startsWith("✓") ? "#065f46" : "#991b1b",
-                  }}
-                >
-                  {r}
-                </div>
-              ))}
+            <div className="card">
+              <h2 className="card-title">Match Analysis</h2>
+              <div style={s.reasons}>
+                {result.reasons.map((r: string, i: number) => (
+                  <div
+                    key={i}
+                    style={{
+                      ...s.reason,
+                      color: r.startsWith("✓") ? "var(--accent-strong)" : "#991b1b",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        width: 20,
+                        height: 20,
+                        borderRadius: 6,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 11,
+                        fontWeight: 800,
+                        flexShrink: 0,
+                        background: r.startsWith("✓") ? "var(--success-soft)" : "var(--danger-soft)",
+                      }}
+                    >
+                      {r.startsWith("✓") ? "✓" : "✗"}
+                    </span>
+                    {r.slice(1).trim()}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </>
@@ -104,31 +164,41 @@ export default function StudentResult() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  loading: { display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" },
-  heading: { fontSize: 24, fontWeight: 700, marginBottom: 24, color: "#1a1a2e" },
-  card: {
-    background: "#fff",
-    borderRadius: 12,
-    padding: 24,
-    marginBottom: 20,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gap: 12,
   },
-  cardTitle: { fontSize: 16, fontWeight: 600, marginBottom: 16, color: "#1a1a2e" },
-  grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
-  infoItem: { fontSize: 14, color: "#374151", padding: "5px 0" },
-  infoKey: { fontWeight: 600 },
-  overallScore: {
-    fontSize: 52,
+  infoItem: {
+    padding: "10px 14px",
+    borderRadius: 10,
+    background: "var(--surface-2)",
+    border: "1px solid var(--border)",
+  },
+  infoKey: {
+    fontSize: 11,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    color: "var(--text-3)",
+    marginBottom: 2,
+  },
+  infoVal: { fontSize: 14, fontWeight: 600, color: "var(--text)", textTransform: "capitalize" },
+  overall: {
+    fontSize: 40,
     fontWeight: 800,
-    color: "#0f766e",
-    textAlign: "center",
-    marginBottom: 24,
+    color: "var(--accent)",
+    lineHeight: 1,
+    letterSpacing: "-0.02em",
   },
-  barsWrap: { display: "flex", flexDirection: "column", gap: 12 },
+  bars: { display: "flex", flexDirection: "column", gap: 14 },
   barRow: { display: "flex", alignItems: "center", gap: 12 },
-  barLabel: { width: 70, fontSize: 13, color: "#6b7280" },
-  barTrack: { flex: 1, height: 8, background: "#e5e7eb", borderRadius: 4, overflow: "hidden" },
-  barFill: { height: "100%", background: "#0f766e", borderRadius: 4 },
-  barVal: { width: 40, fontSize: 13, fontWeight: 600, color: "#0f766e", textAlign: "right" },
-  reason: { fontSize: 14, padding: "5px 0", borderBottom: "1px solid #f3f4f6" },
+  barLabel: { width: 72, fontSize: 13, color: "var(--text-2)", fontWeight: 500 },
+  barTrack: { flex: 1, height: 9, background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 999, overflow: "hidden" },
+  barFill: { height: "100%", borderRadius: 999, background: "linear-gradient(90deg, #0d9488, #14b8a6)", transition: "width 0.5s ease" },
+  barVal: { width: 44, fontSize: 13, fontWeight: 700, color: "var(--accent)", textAlign: "right" },
+  twoCol: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 },
+  skillLabel: { fontSize: 12.5, fontWeight: 700, color: "var(--text-2)", marginBottom: 10 },
+  reasons: { display: "flex", flexDirection: "column", gap: 8 },
+  reason: { display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, padding: "8px 12px", borderRadius: 10, background: "var(--surface-2)" },
 };

@@ -18,6 +18,7 @@ from sqlalchemy import select
 from app.ai.utils import to_json
 from app.core.database import AsyncSessionLocal
 from app.models.admin import Admin
+from app.models.application import Application
 from app.models.internship import Internship
 from app.models.student import Student
 from app.utils.auth import hash_password
@@ -74,6 +75,15 @@ STUDENTS = [
 ]
 
 DEADLINE = date.today() + timedelta(days=30)
+
+# Which students apply to which internship (by title).
+# Each student is matched to their best-fit role plus a secondary one,
+# so the AI allocation engine can demonstrate conflict resolution.
+APPLICATIONS = {
+    "aditya@student.com": ["AI/ML Intern", "Data Analyst Intern"],
+    "priya@student.com": ["Data Analyst Intern", "AI/ML Intern"],
+    "rahul@student.com": ["Web Development Intern"],
+}
 
 INTERNSHIPS = [
     {
@@ -187,6 +197,49 @@ async def seed() -> None:
                     )
                 )
                 logger.info("Created internship: %s (%s seats)", i["title"], i["seats"])
+
+        # Applications (idempotent — skips existing pairs)
+        students_by_email = {}
+        for s in STUDENTS:
+            found = await db.execute(select(Student).where(Student.email == s["email"]))
+            students_by_email[s["email"]] = found.scalar_one_or_none()
+
+        internships_by_title = {}
+        i_result = await db.execute(select(Internship))
+        for internship in i_result.scalars().all():
+            internships_by_title[internship.title] = internship
+
+        app_count = 0
+        for email, titles in APPLICATIONS.items():
+            student = students_by_email.get(email)
+            if not student:
+                continue
+            for title in titles:
+                internship = internships_by_title.get(title)
+                if not internship:
+                    continue
+                existing = await db.execute(
+                    select(Application).where(
+                        Application.student_id == student.id,
+                        Application.internship_id == internship.id,
+                    )
+                )
+                if existing.scalar_one_or_none():
+                    continue
+                db.add(
+                    Application(
+                        student_id=student.id,
+                        internship_id=internship.id,
+                        status="pending",
+                        resume_used=student.resume_path,
+                    )
+                )
+                app_count += 1
+                logger.info(
+                    "Created application: %s → %s", student.email, internship.title
+                )
+        if app_count:
+            logger.info("Created %s demo application(s).", app_count)
 
         await db.commit()
         logger.info("Seed complete.")

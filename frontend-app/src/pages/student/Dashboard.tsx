@@ -1,7 +1,45 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../../components/Layout";
+import StatusBadge from "../../components/StatusBadge";
 import api from "../../services/api";
+
+const stroke = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+const icons = {
+  profile: (
+    <svg viewBox="0 0 24 24" width="20" height="20" {...stroke}>
+      <circle cx="12" cy="8" r="3.6" />
+      <path d="M4.8 20a7.2 7.2 0 0 1 14.4 0" />
+    </svg>
+  ),
+  resume: (
+    <svg viewBox="0 0 24 24" width="20" height="20" {...stroke}>
+      <path d="M6 2.5h9L19.5 7v14.5H6z" />
+      <path d="M14.5 2.5V7h5" />
+      <path d="M9 12.5h6M9 16h6" />
+    </svg>
+  ),
+  skills: (
+    <svg viewBox="0 0 24 24" width="20" height="20" {...stroke}>
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+      <circle cx="12" cy="12" r="4.5" />
+    </svg>
+  ),
+  apply: (
+    <svg viewBox="0 0 24 24" width="20" height="20" {...stroke}>
+      <path d="M8 4.5h9A1.5 1.5 0 0 1 18.5 6v12A1.5 1.5 0 0 1 17 19.5H8z" />
+      <path d="M11.5 4.5v-1a1.5 1.5 0 0 0-3 0v1" />
+      <path d="M11 12.5 13.2 15 17 10.5" />
+    </svg>
+  ),
+};
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -11,34 +49,53 @@ export default function StudentDashboard() {
     api.get("/api/student/dashboard").then((r) => setData(r.data));
   }, []);
 
-  if (!data) return <div style={s.loading}>Loading...</div>;
+  if (!data)
+    return (
+      <div className="loading">
+        <div className="spinner" /> Loading dashboard...
+      </div>
+    );
 
   const { student, confirmed_skills, stats, result } = data;
 
+  const statCards = [
+    { label: "Profile Complete", value: `${student.profile_completion}%`, icon: icons.profile, tint: "#eef2ff", color: "#4338ca" },
+    { label: "Resume", value: student.resume_status.replace("_", " "), icon: icons.resume, tint: "#dbeafe", color: "#1d4ed8" },
+    { label: "Skills", value: student.skills_confirmed ? "Confirmed" : "Pending", icon: icons.skills, tint: "#d1fae5", color: "#059669" },
+    { label: "Applications", value: String(stats?.total_applications ?? 0), icon: icons.apply, tint: "#ede9fe", color: "#7c3aed" },
+  ];
+
   return (
     <Layout role="student">
-      <h2 style={s.heading}>Welcome back, {student.name}</h2>
+      <div className="row-between" style={{ marginBottom: 24 }}>
+        <div>
+          <h1 className="page-title">Welcome back, {student.name.split(" ")[0]}</h1>
+          <p className="page-sub">Here's a snapshot of your application progress.</p>
+        </div>
+        <div style={s.avatar}>{student.name?.[0]?.toUpperCase()}</div>
+      </div>
 
-      <div style={s.statsRow}>
-        {[
-          ["Profile", `${student.profile_completion}%`, "#0f766e"],
-          ["Resume", student.resume_status, "#1d4ed8"],
-          ["Skills", student.skills_confirmed ? "Confirmed" : "Pending", "#d97706"],
-          ["Applications", String(stats?.total_applications ?? 0), "#7c3aed"],
-        ].map(([label, val, color]) => (
-          <div key={label} style={s.statCard}>
-            <div style={{ ...s.statVal, color }}>{val}</div>
-            <div style={s.statLabel}>{label}</div>
+      <div className="stat-grid">
+        {statCards.map((c) => (
+          <div key={c.label} className="stat-card">
+            <div className="stat-icon" style={{ background: c.tint, color: c.color }}>
+              {c.icon}
+            </div>
+            <div>
+              <div className="stat-value">{c.value}</div>
+              <div className="stat-label">{c.label}</div>
+            </div>
           </div>
         ))}
       </div>
 
       {confirmed_skills?.length > 0 && (
-        <div style={s.card}>
-          <h3 style={s.cardTitle}>Confirmed Skills</h3>
-          <div style={s.skillsWrap}>
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h2 className="card-title">Confirmed Skills</h2>
+          <p className="card-sub">These skills are used by the AI engine for matching.</p>
+          <div className="tags">
             {confirmed_skills.map((sk: string) => (
-              <span key={sk} style={s.skill}>
+              <span key={sk} className="tag">
                 {sk}
               </span>
             ))}
@@ -47,43 +104,49 @@ export default function StudentDashboard() {
       )}
 
       {result?.allocated && result?.results_published ? (
-        <div style={{ ...s.card, borderLeft: "4px solid #10b981" }}>
-          <h3 style={s.cardTitle}>Internship Allocated</h3>
+        <div className="card" style={{ borderLeft: "4px solid var(--success)", marginBottom: 20 }}>
+          <div className="row-between" style={{ marginBottom: 14 }}>
+            <h2 className="card-title">Internship Allocated</h2>
+            <StatusBadge status="allocated" />
+          </div>
           <div style={s.grid}>
             <div>
-              <b>Role:</b> {result.internship?.title}
+              <div style={s.infoKey}>Role</div>
+              <div style={s.infoVal}>{result.internship?.title}</div>
             </div>
             <div>
-              <b>Location:</b> {result.internship?.location}
+              <div style={s.infoKey}>Location</div>
+              <div style={s.infoVal}>{result.internship?.location || "—"}</div>
             </div>
             <div>
-              <b>Mode:</b> {result.internship?.mode}
+              <div style={s.infoKey}>Mode</div>
+              <div style={s.infoVal}>{result.internship?.mode}</div>
             </div>
             <div>
-              <b>Match Score:</b>{" "}
-              <span style={{ color: "#10b981", fontWeight: 700 }}>
+              <div style={s.infoKey}>Match Score</div>
+              <div style={{ ...s.infoVal, color: "var(--success)", fontWeight: 700 }}>
                 {result.match_scores?.overall}%
-              </span>
+              </div>
             </div>
           </div>
-          <button style={s.btn} onClick={() => navigate("/student/result")}>
+          <button className="btn btn-accent" onClick={() => navigate("/student/result")}>
             View Full Result
           </button>
         </div>
       ) : (
-        <div style={{ ...s.card, borderLeft: "4px solid #f59e0b" }}>
-          <h3 style={s.cardTitle}>Allocation Status</h3>
-          <p style={{ color: "#6b7280", marginBottom: 16 }}>
+        <div className="card" style={{ borderLeft: "4px solid var(--warning)", marginBottom: 20 }}>
+          <h2 className="card-title">Allocation Status</h2>
+          <p className="card-sub">
             {result?.message ||
-              "Complete your profile, confirm skills, and apply to open internships."}
+              "Complete your profile, confirm your skills, and apply to open internships."}
           </p>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div className="row-gap">
             {!student.skills_confirmed && (
-              <button style={s.btn} onClick={() => navigate("/student/resume")}>
+              <button className="btn" onClick={() => navigate("/student/resume")}>
                 Upload Resume
               </button>
             )}
-            <button style={s.secondary} onClick={() => navigate("/student/internships")}>
+            <button className="btn btn-secondary" onClick={() => navigate("/student/internships")}>
               Browse Internships ({stats?.open_internships_available ?? 0} open)
             </button>
           </div>
@@ -94,61 +157,25 @@ export default function StudentDashboard() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  loading: {
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    height: "100vh",
-    fontSize: 18,
-  },
-  heading: { fontSize: 24, fontWeight: 700, marginBottom: 24, color: "#1a1a2e" },
-  statsRow: { display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" },
-  statCard: {
-    flex: 1,
-    minWidth: 140,
-    background: "#fff",
-    borderRadius: 12,
-    padding: "20px 16px",
-    textAlign: "center",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-  },
-  statVal: { fontSize: 18, fontWeight: 700, marginBottom: 4 },
-  statLabel: { fontSize: 12, color: "#9ca3af" },
-  card: {
-    background: "#fff",
-    borderRadius: 12,
-    padding: 24,
-    marginBottom: 20,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-  },
-  cardTitle: { fontSize: 16, fontWeight: 600, marginBottom: 16, color: "#1a1a2e" },
-  skillsWrap: { display: "flex", flexWrap: "wrap", gap: 8 },
-  skill: {
-    background: "#ccfbf1",
-    color: "#115e59",
-    padding: "4px 12px",
-    borderRadius: 20,
-    fontSize: 13,
-  },
-  grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 },
-  btn: {
-    padding: "9px 18px",
-    background: "#0f766e",
+    fontSize: 20,
+    fontWeight: 800,
     color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 500,
+    background: "linear-gradient(135deg, #6366f1, #0ea5e9)",
+    boxShadow: "0 8px 20px -6px rgba(99,102,241,0.55)",
   },
-  secondary: {
-    padding: "9px 18px",
-    background: "#ecfdf5",
-    color: "#0f766e",
-    border: "1px solid #99f6e4",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 500,
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gap: 14,
+    marginBottom: 18,
   },
+  infoKey: { fontSize: 11.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--text-3)", marginBottom: 2 },
+  infoVal: { fontSize: 15, fontWeight: 600, color: "var(--text)", textTransform: "capitalize" },
 };

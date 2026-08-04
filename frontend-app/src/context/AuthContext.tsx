@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import api from "../services/api";
 
 /** Backend roles: student | admin. UI may label admin as "Company". */
