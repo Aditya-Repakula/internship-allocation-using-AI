@@ -25,6 +25,8 @@ from app.services.admin_service import (
 )
 from app.services.allocation_service import (
     get_internship_allocations,
+    preview_allocation_for_internship,
+    preview_global_allocation,
     run_allocation_for_internship,
     run_global_allocation,
 )
@@ -104,6 +106,16 @@ async def change_status(
     return await set_internship_status(db, internship_id, new_status)
 
 
+@router.get("/internships/{internship_id}/preview-allocation")
+async def preview_allocation(
+    internship_id: int,
+    current: Admin = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview AI allocation for a specific internship without persisting results."""
+    return await preview_allocation_for_internship(db, internship_id)
+
+
 @router.post("/internships/{internship_id}/run-allocation")
 async def trigger_allocation(
     internship_id: int,
@@ -112,6 +124,15 @@ async def trigger_allocation(
 ):
     """Run AI allocation for a specific internship. Internship must be CLOSED."""
     return await run_allocation_for_internship(db, internship_id)
+
+
+@router.get("/preview-allocation")
+async def preview_global_allocation(
+    current: Admin = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview AI allocation across all CLOSED internships without making changes."""
+    return await preview_global_allocation(db)
 
 
 @router.post("/run-allocation")

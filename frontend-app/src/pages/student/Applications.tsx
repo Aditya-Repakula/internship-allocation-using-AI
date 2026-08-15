@@ -10,6 +10,9 @@ export default function StudentApplications() {
     api.get("/api/student/applications").then((r) => setApps(r.data));
   }, []);
 
+  const count = (status: string) =>
+    apps.filter((a) => a.application_status === status).length;
+
   return (
     <Layout role="student">
       <div className="row-between" style={{ marginBottom: 22 }}>
@@ -31,35 +34,49 @@ export default function StudentApplications() {
           </p>
         </div>
       ) : (
-        <div className="card">
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  {["Internship", "Location", "Mode", "Deadline", "Internship", "Application"].map((h) => (
-                    <th key={h}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {apps.map((a) => (
-                  <tr key={a.application_id}>
-                    <td style={{ fontWeight: 600, color: "var(--text)" }}>{a.title}</td>
-                    <td>{a.location || "—"}</td>
-                    <td style={{ textTransform: "capitalize" }}>{a.mode || "—"}</td>
-                    <td>{a.application_deadline || "—"}</td>
-                    <td>
-                      <StatusBadge status={a.internship_status} />
-                    </td>
-                    <td>
-                      <StatusBadge status={a.application_status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          <div className="chips" style={{ marginBottom: 18 }}>
+            <span className="chip" style={{ cursor: "default", background: "var(--warning-soft)", borderColor: "transparent" }}>
+              {count("pending")} pending
+            </span>
+            <span className="chip" style={{ cursor: "default", background: "var(--success-soft)", borderColor: "transparent" }}>
+              {count("allocated")} allocated
+            </span>
+            <span className="chip" style={{ cursor: "default", background: "var(--danger-soft)", borderColor: "transparent" }}>
+              {count("not_allocated")} not allocated
+            </span>
           </div>
-        </div>
+
+          <div className="card">
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    {["Internship", "Location", "Mode", "Deadline", "Post Status", "Application"].map((h) => (
+                      <th key={h}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {apps.map((a) => (
+                    <tr key={a.application_id}>
+                      <td style={{ fontWeight: 600, color: "var(--text)" }}>{a.title}</td>
+                      <td>{a.location || "—"}</td>
+                      <td style={{ textTransform: "capitalize" }}>{a.mode || "—"}</td>
+                      <td>{a.application_deadline || "—"}</td>
+                      <td>
+                        <StatusBadge status={a.internship_status} />
+                      </td>
+                      <td>
+                        <StatusBadge status={a.application_status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </Layout>
   );

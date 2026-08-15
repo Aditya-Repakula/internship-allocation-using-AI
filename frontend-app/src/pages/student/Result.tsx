@@ -22,9 +22,12 @@ export default function StudentResult() {
 
   return (
     <Layout role="student">
-      <h1 className="page-title" style={{ marginBottom: 22 }}>
-        My Internship Result
-      </h1>
+      <div style={{ marginBottom: 22 }}>
+        <h1 className="page-title" style={{ margin: 0 }}>
+          My Internship Result
+        </h1>
+        <p className="page-sub">Your final allocation, decided by the AI matching engine.</p>
+      </div>
 
       {!published && !rejected ? (
         <div className="card">

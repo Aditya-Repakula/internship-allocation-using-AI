@@ -67,12 +67,26 @@ export default function StudentDashboard() {
 
   return (
     <Layout role="student">
-      <div className="row-between" style={{ marginBottom: 24 }}>
+      <div className="hero">
+        <div className="hero-avatar">{student.name?.[0]?.toUpperCase()}</div>
         <div>
-          <h1 className="page-title">Welcome back, {student.name.split(" ")[0]}</h1>
-          <p className="page-sub">Here's a snapshot of your application progress.</p>
+          <h1>Welcome back, {student.name.split(" ")[0]}</h1>
+          <p>Here's a snapshot of your application progress.</p>
         </div>
-        <div style={s.avatar}>{student.name?.[0]?.toUpperCase()}</div>
+        <div className="hero-side">
+          <div className="hero-pill">
+            <b>{student.profile_completion}%</b>
+            <span>Profile</span>
+          </div>
+          <div className="hero-pill">
+            <b>{stats?.total_applications ?? 0}</b>
+            <span>Applications</span>
+          </div>
+          <div className="hero-pill">
+            <b>{stats?.open_internships_available ?? 0}</b>
+            <span>Open Roles</span>
+          </div>
+        </div>
       </div>
 
       <div className="stat-grid">
@@ -173,19 +187,6 @@ export default function StudentDashboard() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 20,
-    fontWeight: 800,
-    color: "#fff",
-    background: "linear-gradient(135deg, #6366f1, #0ea5e9)",
-    boxShadow: "0 8px 20px -6px rgba(99,102,241,0.55)",
-  },
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",

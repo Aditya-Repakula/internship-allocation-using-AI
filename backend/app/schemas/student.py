@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 
 class StudentRegister(BaseModel):
@@ -6,6 +6,15 @@ class StudentRegister(BaseModel):
     email: EmailStr
     password: str
     phone: str | None = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if len(value) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if value.isalpha() or value.isnumeric():
+            raise ValueError("Password must include letters and numbers")
+        return value
 
 
 class StudentProfileUpdate(BaseModel):
@@ -16,9 +25,27 @@ class StudentProfileUpdate(BaseModel):
     preferred_location: str | None = None
     interested_sector: str | None = None
 
+    @field_validator("cgpa")
+    @classmethod
+    def validate_cgpa(cls, value: float | None) -> float | None:
+        if value is None:
+            return None
+        if value < 0 or value > 10:
+            raise ValueError("CGPA must be between 0 and 10")
+        return value
+
 
 class SkillConfirmRequest(BaseModel):
     confirmed_skills: list[str]
+
+    @field_validator("confirmed_skills")
+    @classmethod
+    def validate_skills(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("At least one confirmed skill is required")
+        if not all(isinstance(item, str) and item.strip() for item in value):
+            raise ValueError("Confirmed skills must be non-empty strings")
+        return [item.strip() for item in value]
 
 
 class StudentOut(BaseModel):

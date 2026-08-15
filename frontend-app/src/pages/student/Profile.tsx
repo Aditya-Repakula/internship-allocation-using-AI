@@ -61,11 +61,29 @@ export default function StudentProfile() {
 
   const pct = profile.profile_completion || 0;
 
+  const checks: [string, boolean][] = [
+    ["College", !!profile.college],
+    ["Degree", !!profile.degree],
+    ["Branch", !!profile.branch],
+    ["CGPA", profile.cgpa != null && profile.cgpa !== ""],
+    ["Resume uploaded", profile.resume_status && profile.resume_status !== "not_uploaded"],
+    ["Skills confirmed", !!profile.skills_confirmed],
+  ];
+  const doneCount = checks.filter(([, done]) => done).length;
+
   return (
     <Layout role="student">
-      <h1 className="page-title" style={{ marginBottom: 22 }}>
-        My Profile
-      </h1>
+      <div className="row-between" style={{ marginBottom: 22 }}>
+        <div>
+          <h1 className="page-title">My Profile</h1>
+          <p className="page-sub">
+            Complete your details — the AI engine uses these to match you with internships.
+          </p>
+        </div>
+        <span className="badge" style={{ background: "var(--primary-soft)", color: "#4338ca" }}>
+          {doneCount}/{checks.length} complete
+        </span>
+      </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="row-between">
@@ -87,6 +105,24 @@ export default function StudentProfile() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h2 className="card-title">Profile Checklist</h2>
+        <p className="card-sub">Fill everything in to be eligible for AI allocation.</p>
+        {checks.map(([label, done]) => (
+          <div key={label} className="check-item">
+            <div className={`check-mark ${done ? "done" : "missing"}`}>{done ? "✓" : "!"}</div>
+            <div className="check-label">{label}</div>
+            {done ? (
+              <span className="small" style={{ color: "var(--success)", fontWeight: 600 }}>
+                Done
+              </span>
+            ) : (
+              <span className="check-hint">Missing</span>
+            )}
+          </div>
+        ))}
       </div>
 
       <div className="card">

@@ -197,6 +197,182 @@ class TestMatcher:
         assert isinstance(result.reasons, list)
         assert len(result.reasons) > 0
 
+    def test_alias_skill_matching(self):
+        """Short-form skills match their full names (ML ≡ Machine Learning)."""
+        from app.ai.matcher import calculate_match
+        result = calculate_match(
+            student_skills=["ML", "NLP"],
+            student_degree="B.Tech",
+            student_branch="AIML",
+            student_cgpa=8.5,
+            student_location="Bangalore",
+            student_sector="AI/ML",
+            required_skills=["Machine Learning", "Natural Language Processing"],
+            preferred_degree="B.Tech",
+            preferred_branches=["AIML"],
+            min_cgpa=6.0,
+            internship_location="Bangalore",
+            internship_sector="AI/ML",
+        )
+        assert result.skills_score == 100.0
+        assert "Machine Learning" in result.matched_skills
+
+    def test_skill_word_containment(self):
+        """'Python' should match a required 'Python Programming'."""
+        from app.ai.matcher import calculate_match
+        result = calculate_match(
+            student_skills=["Python", "Django"],
+            student_degree="B.Tech",
+            student_branch="CSE",
+            student_cgpa=8.0,
+            student_location="Bangalore",
+            student_sector="IT",
+            required_skills=["Python Programming", "Django"],
+            preferred_degree="B.Tech",
+            preferred_branches=["CSE"],
+            min_cgpa=6.0,
+            internship_location="Bangalore",
+            internship_sector="IT",
+        )
+        assert result.skills_score >= 95.0
+        assert "Python Programming" in result.matched_skills
+
+    def test_unrelated_skills_do_not_match(self):
+        """Java must not count as a match for Python."""
+        from app.ai.matcher import calculate_match
+        result = calculate_match(
+            student_skills=["Java", "Spring"],
+            student_degree="B.Tech",
+            student_branch="CSE",
+            student_cgpa=8.0,
+            student_location="Bangalore",
+            student_sector="IT",
+            required_skills=["Python", "TensorFlow"],
+            preferred_degree="B.Tech",
+            preferred_branches=["CSE"],
+            min_cgpa=6.0,
+            internship_location="Bangalore",
+            internship_sector="IT",
+        )
+        assert result.matched_skills == []
+        assert result.skills_score < 50.0
+
+    def test_project_evidence_boosts_skill(self):
+        """A required skill mentioned in a project counts even if not listed."""
+        from app.ai.matcher import calculate_match
+        result = calculate_match(
+            student_skills=["Python"],
+            student_degree="B.Tech",
+            student_branch="CSE",
+            student_cgpa=8.0,
+            student_location="Bangalore",
+            student_sector="IT",
+            required_skills=["Python", "React"],
+            preferred_degree="B.Tech",
+            preferred_branches=["CSE"],
+            min_cgpa=6.0,
+            internship_location="Bangalore",
+            internship_sector="IT",
+            evidence=["Built an e-commerce dashboard using React and Redux"],
+        )
+        assert "React" in result.matched_skills
+        assert any("evidenced" in r for r in result.reasons)
+
+    def test_degree_family_equivalence(self):
+        """B.E. is treated as equivalent to B.Tech."""
+        from app.ai.matcher import calculate_match
+        result = calculate_match(
+            student_skills=["Python"],
+            student_degree="B.E.",
+            student_branch="CSE",
+            student_cgpa=8.0,
+            student_location="Bangalore",
+            student_sector="IT",
+            required_skills=["Python"],
+            preferred_degree="B.Tech",
+            preferred_branches=["CSE"],
+            min_cgpa=6.0,
+            internship_location="Bangalore",
+            internship_sector="IT",
+        )
+        assert result.degree_score == 100.0
+
+    def test_branch_abbreviation_match(self):
+        """CSE must match 'Computer Science'."""
+        from app.ai.matcher import calculate_match
+        result = calculate_match(
+            student_skills=["Python"],
+            student_degree="B.Tech",
+            student_branch="CSE",
+            student_cgpa=8.0,
+            student_location="Bangalore",
+            student_sector="IT",
+            required_skills=["Python"],
+            preferred_degree="B.Tech",
+            preferred_branches=["Computer Science"],
+            min_cgpa=6.0,
+            internship_location="Bangalore",
+            internship_sector="IT",
+        )
+        assert result.branch_score == 100.0
+
+    def test_remote_location_matches_anyone(self):
+        """Remote internships never penalise a student's location."""
+        from app.ai.matcher import calculate_match
+        result = calculate_match(
+            student_skills=["Python"],
+            student_degree="B.Tech",
+            student_branch="CSE",
+            student_cgpa=8.0,
+            student_location="Kochi",
+            student_sector="IT",
+            required_skills=["Python"],
+            preferred_degree="B.Tech",
+            preferred_branches=["CSE"],
+            min_cgpa=6.0,
+            internship_location="Remote",
+            internship_sector="IT",
+        )
+        assert result.location_score == 100.0
+
+    def test_city_alias_match(self):
+        """Bangalore ≡ Bengaluru for location scoring."""
+        from app.ai.matcher import calculate_match
+        result = calculate_match(
+            student_skills=["Python"],
+            student_degree="B.Tech",
+            student_branch="CSE",
+            student_cgpa=8.0,
+            student_location="Bengaluru",
+            student_sector="IT",
+            required_skills=["Python"],
+            preferred_degree="B.Tech",
+            preferred_branches=["CSE"],
+            min_cgpa=6.0,
+            internship_location="Bangalore",
+            internship_sector="IT",
+        )
+        assert result.location_score == 100.0
+
+    def test_empty_location_preference_neutral(self):
+        """No location preference → not penalised."""
+        from app.ai.matcher import calculate_match
+        result = calculate_match(
+            student_skills=["Python"],
+            student_degree="B.Tech",
+            student_branch="CSE",
+            student_cgpa=8.0,
+            student_location="",
+            student_sector="IT",
+            required_skills=["Python"],
+            preferred_degree="B.Tech",
+            preferred_branches=["CSE"],
+            min_cgpa=6.0,
+            internship_location="Bangalore",
+            internship_sector="IT",
+        )
+        assert result.location_score == 100.0
+
 
 # ── Allocation Engine ─────────────────────────────────────────────────────────
 

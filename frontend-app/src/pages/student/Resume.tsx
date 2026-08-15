@@ -108,6 +108,20 @@ export default function Resume() {
 
       {step === "review" && extracted && (
         <>
+          <div className="steps">
+            <div className="step done">
+              <div className="step-dot">✓</div> Upload
+            </div>
+            <div className="step-line done" />
+            <div className={`step ${confirmed ? "done" : "active"}`}>
+              <div className="step-dot">2</div> Review
+            </div>
+            <div className={`step-line ${confirmed ? "done" : ""}`} />
+            <div className={`step ${confirmed ? "done" : ""}`}>
+              <div className="step-dot">3</div> Confirm
+            </div>
+          </div>
+
           <div className="card" style={{ marginBottom: 20 }}>
             <h2 className="card-title">Extracted Information</h2>
             <p className="card-sub">Review the details the parser pulled from your resume.</p>

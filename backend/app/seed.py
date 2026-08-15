@@ -45,6 +45,11 @@ STUDENTS = [
         "preferred_location": "Bangalore",
         "interested_sector": "AI/ML",
         "skills": ["Python", "Machine Learning", "TensorFlow", "SQL", "Pandas"],
+        "projects": [
+            "Built a sentiment analysis model for product reviews using TensorFlow",
+            "Chatbot for college helpdesk using NLP and Python",
+        ],
+        "certifications": ["TensorFlow Developer Certificate", "Machine Learning by Stanford"],
     },
     {
         "name": "Priya Nair",
@@ -58,6 +63,11 @@ STUDENTS = [
         "preferred_location": "Bangalore",
         "interested_sector": "Data Science",
         "skills": ["Python", "SQL", "Excel", "Tableau", "Statistics"],
+        "projects": [
+            "Sales dashboard with Tableau for a retail dataset",
+            "Customer churn analysis using Python and statistics",
+        ],
+        "certifications": ["Tableau Desktop Specialist", "Google Data Analytics"],
     },
     {
         "name": "Rahul Verma",
@@ -71,6 +81,47 @@ STUDENTS = [
         "preferred_location": "Hyderabad",
         "interested_sector": "Web Development",
         "skills": ["JavaScript", "React", "Node.js", "HTML", "CSS", "MongoDB"],
+        "projects": [
+            "E-commerce store frontend built with React",
+            "REST API for a blog platform using Node.js and MongoDB",
+        ],
+        "certifications": ["Full Stack Web Development (Node.js)"],
+    },
+    {
+        "name": "Sneha Reddy",
+        "email": "sneha@student.com",
+        "password": "student123",
+        "phone": "9000000004",
+        "college": "ABC Institute of Technology",
+        "degree": "B.Tech",
+        "branch": "AIML",
+        "cgpa": 9.1,
+        "preferred_location": "Bangalore",
+        "interested_sector": "AI/ML",
+        "skills": ["Python", "Deep Learning", "TensorFlow", "PyTorch", "Computer Vision"],
+        "projects": [
+            "Image classification model using PyTorch (ResNet)",
+            "Real-time object detection dashboard using TensorFlow and OpenCV",
+        ],
+        "certifications": ["Deep Learning Specialization", "TensorFlow Developer Certificate"],
+    },
+    {
+        "name": "Karthik Kumar",
+        "email": "karthik@student.com",
+        "password": "student123",
+        "phone": "9000000005",
+        "college": "LMN Engineering College",
+        "degree": "B.Tech",
+        "branch": "IT",
+        "cgpa": 7.8,
+        "preferred_location": "Chennai",
+        "interested_sector": "Web Development",
+        "skills": ["JavaScript", "TypeScript", "React", "Node.js", "MongoDB"],
+        "projects": [
+            "E-commerce dashboard with React and TypeScript",
+            "Inventory management system using Node.js with MongoDB",
+        ],
+        "certifications": ["Meta Front-End Developer", "MongoDB Basics"],
     },
 ]
 
@@ -83,6 +134,8 @@ APPLICATIONS = {
     "aditya@student.com": ["AI/ML Intern", "Data Analyst Intern"],
     "priya@student.com": ["Data Analyst Intern", "AI/ML Intern"],
     "rahul@student.com": ["Web Development Intern"],
+    "sneha@student.com": ["AI/ML Intern", "Data Analyst Intern"],
+    "karthik@student.com": ["Web Development Intern"],
 }
 
 INTERNSHIPS = [
@@ -164,6 +217,8 @@ async def seed() -> None:
                     interested_sector=s["interested_sector"],
                     extracted_skills=to_json(s["skills"]),
                     confirmed_skills=to_json(s["skills"]),
+                    extracted_projects=to_json(s.get("projects", [])),
+                    extracted_certifications=to_json(s.get("certifications", [])),
                     skills_confirmed=True,
                     resume_status="confirmed",
                     profile_completion=90.0,

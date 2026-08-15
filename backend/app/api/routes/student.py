@@ -1,3 +1,4 @@
+from datetime import date
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +8,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_student
 from app.models.internship import Internship
 from app.models.student import Student
-from app.schemas.internship import InternshipOut
+from app.schemas.internship import InternshipBrowseOut, InternshipOut
 from app.schemas.student import (
     ExtractedResumeOut,
     SkillConfirmRequest,
@@ -18,6 +19,7 @@ from app.services.application_service import (
     apply_to_internship,
     get_student_applications,
     list_open_internships,
+    list_open_internships_with_eligibility,
 )
 from app.services.allocation_service import get_student_result_if_published
 from app.services.student_service import (
@@ -91,13 +93,13 @@ async def confirm_student_skills(
 
 # ── Internship Browse ─────────────────────────────────────────────────────────
 
-@router.get("/internships", response_model=list[InternshipOut])
+@router.get("/internships", response_model=list[InternshipBrowseOut])
 async def browse_internships(
     current: Student = Depends(get_current_student),
     db: AsyncSession = Depends(get_db),
 ):
     """List all OPEN internships available for application."""
-    return await list_open_internships(db)
+    return await list_open_internships_with_eligibility(db, current)
 
 
 @router.get("/internships/{internship_id}")
@@ -122,6 +124,20 @@ async def get_internship_detail(
     )
     already_applied = applied.scalar_one_or_none() is not None
 
+    can_apply = internship.status == "open" and not already_applied and current.skills_confirmed
+    ineligible_reasons = []
+    if not current.skills_confirmed:
+        ineligible_reasons.append("Confirm your skills before applying")
+    if internship.min_cgpa and (current.cgpa is None or current.cgpa < internship.min_cgpa):
+        ineligible_reasons.append(
+            f"Your CGPA {current.cgpa if current.cgpa is not None else 'N/A'} is below the minimum {internship.min_cgpa}"
+        )
+    if already_applied:
+        ineligible_reasons.append("You have already applied to this internship")
+    if internship.application_deadline and internship.application_deadline < date.today():
+        ineligible_reasons.append("The application deadline has passed")
+        can_apply = False
+
     return {
         "id": internship.id,
         "title": internship.title,
@@ -137,6 +153,8 @@ async def get_internship_detail(
         "duration": internship.duration,
         "application_deadline": internship.application_deadline.isoformat() if internship.application_deadline else None,
         "status": internship.status,
+        "can_apply": can_apply,
+        "ineligible_reasons": ineligible_reasons,
         "already_applied": already_applied,
     }
 

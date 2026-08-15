@@ -62,6 +62,8 @@ export default function AdminInternships() {
   const [showForm, setShowForm] = useState(false);
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [applicants, setApplicants] = useState<any | null>(null);
+  const [previewResult, setPreviewResult] = useState<any | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
 
   const load = () => api.get("/api/admin/internships").then((r) => setInternships(r.data));
   useEffect(() => {
@@ -152,6 +154,22 @@ export default function AdminInternships() {
       load();
     } catch (err: any) {
       setMsg({ type: "error", text: err.response?.data?.detail || "Publish failed" });
+    }
+  };
+
+  const previewAllocation = async (id: number) => {
+    if (!confirm("Preview AI allocation for this internship?")) return;
+    setMsg(null);
+    setPreviewBusy(true);
+    setPreviewResult(null);
+    try {
+      const res = await api.get(`/api/admin/internships/${id}/preview-allocation`);
+      setPreviewResult(res.data);
+      setMsg({ type: "success", text: "Preview generated successfully" });
+    } catch (err: any) {
+      setMsg({ type: "error", text: err.response?.data?.detail || "Preview failed" });
+    } finally {
+      setPreviewBusy(false);
     }
   };
 
@@ -247,16 +265,25 @@ export default function AdminInternships() {
                     </button>
                   )}
                   {i.status === "closed" && (
-                    <button className="btn btn-sm" style={{ background: "var(--violet)" }} onClick={() => runAllocation(i.id)}>
-                      Run AI Allocation
-                    </button>
+                    <>
+                      <button className="btn btn-sm" style={{ background: "var(--violet)" }} onClick={() => runAllocation(i.id)}>
+                        Run AI Allocation
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => previewAllocation(i.id)}
+                        disabled={previewBusy}
+                      >
+                        {previewBusy ? "Previewing..." : "Preview Allocation"}
+                      </button>
+                    </>
                   )}
                   {i.status === "allocated" && !i.results_published && (
                     <>
                       <button className="btn btn-sm btn-accent" onClick={() => publish(i.id)}>
                         Publish Results
                       </button>
-                      <button className="btn btn-secondary btn-sm" onClick={() => setStatus(i.id, "closed")}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setStatus(i.id, "closed") }>
                         Reset & Re-run
                       </button>
                     </>
@@ -375,6 +402,36 @@ export default function AdminInternships() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {previewResult && (
+        <div className="modal-overlay" onClick={() => setPreviewResult(null)}>
+          <div className="modal" style={{ maxWidth: 660, padding: 28 }} onClick={(e) => e.stopPropagation()}>
+            <div className="row-between" style={{ marginBottom: 16 }}>
+              <h2 className="card-title" style={{ fontSize: 17 }}>
+                Allocation Preview — Internship {previewResult.internship_id}
+              </h2>
+              <button className="btn btn-secondary btn-sm" onClick={() => setPreviewResult(null)}>
+                Close
+              </button>
+            </div>
+            <p className="muted" style={{ marginBottom: 12 }}>{previewResult.message}</p>
+            <div className="card" style={{ padding: 16, background: "var(--surface)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div><strong>Predicted allocated</strong><div>{previewResult.predicted_allocated}</div></div>
+                <div><strong>Total applicants</strong><div>{previewResult.total_applicants}</div></div>
+                {previewResult.records && (
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <strong>Top record</strong>
+                    <pre style={{ background: "var(--surface)", padding: 12, borderRadius: 10, overflowX: "auto" }}>
+                      {JSON.stringify(previewResult.records[0] || {}, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

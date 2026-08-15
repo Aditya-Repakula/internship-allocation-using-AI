@@ -43,9 +43,19 @@ export default function StudentInternships() {
   const [detail, setDetail] = useState<any | null>(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const load = () =>
-    api.get("/api/student/internships").then((r) => setList(r.data));
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/api/student/internships");
+      setList(res.data);
+    } catch (err: any) {
+      setMsg(err.response?.data?.detail || "Unable to load internships");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -95,6 +105,10 @@ export default function StudentInternships() {
             No open internships right now. Check back later.
           </p>
         </div>
+      ) : loading ? (
+        <div className="loading">
+          <div className="spinner" /> Loading internships...
+        </div>
       ) : (
         <div style={s.grid}>
           {list.map((i) => (
@@ -126,9 +140,22 @@ export default function StudentInternships() {
                   </span>
                 ))}
               </div>
-              <button className="btn" style={{ width: "100%" }} onClick={() => openDetail(i.id)}>
-                View & Apply
-              </button>
+              {!i.can_apply ? (
+                <div style={{ display: "flex", gap: 10, flexDirection: "column" }}>
+                  <button className="btn btn-secondary" style={{ width: "100%" }} disabled>
+                    {i.already_applied ? "Already Applied" : "Not Eligible"}
+                  </button>
+                  {i.ineligible_reasons?.length ? (
+                    <div className="muted" style={{ fontSize: 13 }}>
+                      {i.ineligible_reasons[0]}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <button className="btn" style={{ width: "100%" }} onClick={() => openDetail(i.id)}>
+                  View & Apply
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -174,14 +201,27 @@ export default function StudentInternships() {
               ))}
             </div>
 
+            {detail.can_apply === false && detail.ineligible_reasons?.length ? (
+              <div className="alert alert-error" style={{ marginBottom: 14 }}>
+                <strong>Not eligible yet:</strong>
+                <ul style={{ margin: "8px 0 0 16px", padding: 0 }}>
+                  {detail.ineligible_reasons.map((reason: string) => (
+                    <li key={reason} style={{ listStyleType: "disc", marginLeft: 10 }}>
+                      {reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             <div className="row-gap">
               {detail.already_applied ? (
                 <span className="badge" style={{ background: "var(--success-soft)", color: "#065f46", padding: "10px 18px" }}>
                   Already applied
                 </span>
               ) : (
-                <button className="btn btn-accent" disabled={busy} onClick={() => apply(detail.id)}>
-                  {busy ? "Submitting..." : "Apply Now"}
+                <button className="btn btn-accent" disabled={busy || !detail.can_apply} onClick={() => apply(detail.id)}>
+                  {busy ? "Submitting..." : detail.can_apply ? "Apply Now" : "Cannot Apply"}
                 </button>
               )}
               <button className="btn btn-secondary" onClick={() => setDetail(null)}>

@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from app.ai.matcher import MatchResult, calculate_match
 from app.ai.preprocessing import normalize_skill
 
+MIN_OVERALL_MATCH_SCORE = 45.0  # below this score, a matching pair is considered too weak for allocation
+
 logger = logging.getLogger(__name__)
 
 
@@ -109,6 +111,8 @@ def run_allocation(
                 internship_location=internship.location,
                 internship_sector=internship.sector,
             )
+            if result.overall_score < MIN_OVERALL_MATCH_SCORE:
+                continue
             student_matches[student.id][internship.id] = result
             internship_matches[internship.id][student.id] = result
 

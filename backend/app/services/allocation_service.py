@@ -1,3 +1,4 @@
+import json
 import logging
 
 from fastapi import HTTPException
@@ -109,6 +110,53 @@ async def _persist_records(
     return saved
 
 
+async def preview_allocation_for_internship(db: AsyncSession, internship_id: int) -> dict:
+    """Preview AI allocation results for a single CLOSED internship without persisting."""
+    i_result = await db.execute(select(Internship).where(Internship.id == internship_id))
+    internship = i_result.scalar_one_or_none()
+    if not internship:
+        raise HTTPException(status_code=404, detail="Internship not found")
+
+    if internship.status not in ELIGIBLE_FOR_ALLOCATION:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Allocation preview can only run on CLOSED internships "
+                f"(current status: {internship.status})"
+            ),
+        )
+
+    students = await _eligible_applicants(db, internship_id)
+    if not students:
+        return {
+            "message": "No eligible confirmed students among applicants",
+            "predicted_allocated": 0,
+            "internship_id": internship_id,
+        }
+
+    records = run_allocation(
+        [_to_student_profile(s) for s in students],
+        [_to_internship_profile(internship)],
+    )
+
+    return {
+        "message": "Allocation preview ready",
+        "internship_id": internship_id,
+        "predicted_allocated": len(records),
+        "total_applicants": len(students),
+        "records": [
+            {
+                "student_id": r.student_id,
+                "internship_id": r.internship_id,
+                "match_score": r.match_score,
+                "rank": r.rank,
+                "allocation_reason": json.loads(r.allocation_reason),
+            }
+            for r in records
+        ],
+    }
+
+
 async def run_allocation_for_internship(db: AsyncSession, internship_id: int) -> dict:
     """
     Run AI allocation for a single CLOSED internship.
@@ -163,6 +211,56 @@ async def run_allocation_for_internship(db: AsyncSession, internship_id: int) ->
         "internship_id": internship_id,
         "allocated": saved,
         "total_applicants": len(students),
+    }
+
+
+async def preview_global_allocation(db: AsyncSession) -> dict:
+    """Preview AI allocation across all CLOSED internships without making changes."""
+    i_result = await db.execute(
+        select(Internship).where(Internship.status.in_(ELIGIBLE_FOR_ALLOCATION))
+    )
+    internships = list(i_result.scalars().all())
+    if not internships:
+        raise HTTPException(
+            status_code=400,
+            detail="No CLOSED internships available for allocation preview",
+        )
+
+    students_by_id: dict[int, Student] = {}
+    student_allowed_internships: dict[int, set[int]] = {}
+
+    for internship in internships:
+        applicants = await _eligible_applicants(db, internship.id)
+        for s in applicants:
+            students_by_id[s.id] = s
+            student_allowed_internships.setdefault(s.id, set()).add(internship.id)
+
+    if not students_by_id:
+        return {
+            "message": "No eligible applicants across closed internships",
+            "predicted_allocated": 0,
+            "internships": [i.id for i in internships],
+        }
+
+    student_profiles = [_to_student_profile(s) for s in students_by_id.values()]
+    internship_profiles = [_to_internship_profile(i) for i in internships]
+
+    records = run_allocation(
+        student_profiles,
+        internship_profiles,
+        allowed_pairs=student_allowed_internships,
+    )
+
+    by_internship: dict[int, int] = {}
+    for rec in records:
+        by_internship[rec.internship_id] = by_internship.get(rec.internship_id, 0) + 1
+
+    return {
+        "message": "Global allocation preview ready",
+        "predicted_allocated": len(records),
+        "total_eligible_students": len(students_by_id),
+        "internships_processed": [i.id for i in internships],
+        "predicted_allocated_per_internship": by_internship,
     }
 
 

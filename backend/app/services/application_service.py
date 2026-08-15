@@ -5,6 +5,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.preprocessing import normalize_skill
+from app.ai.utils import from_json
 from app.models.application import Application
 from app.models.internship import Internship
 from app.models.student import Student
@@ -83,6 +85,82 @@ async def list_open_internships(db: AsyncSession) -> list[Internship]:
         .order_by(Internship.application_deadline)
     )
     return list(result.scalars().all())
+
+
+def _check_internship_eligibility(student: Student, internship: Internship) -> tuple[bool, list[str]]:
+    reasons: list[str] = []
+    eligible = True
+
+    if not student.skills_confirmed:
+        reasons.append("Confirm your skills before applying")
+        eligible = False
+
+    if internship.min_cgpa and (student.cgpa is None or student.cgpa < internship.min_cgpa):
+        reasons.append(
+            f"Your CGPA {student.cgpa if student.cgpa is not None else 'N/A'} is below the minimum {internship.min_cgpa}"
+        )
+        eligible = False
+
+    if internship.preferred_branches:
+        student_branch = normalize_skill(student.branch or "")
+        allowed = {normalize_skill(b) for b in internship.preferred_branches}
+        if student_branch not in allowed:
+            if not any(
+                student_branch == a or student_branch in a or a in student_branch
+                for a in allowed
+                if a
+            ):
+                reasons.append(
+                    "Your branch does not match the internship's preferred branches"
+                )
+                eligible = False
+
+    if internship.application_deadline and internship.application_deadline < date.today():
+        reasons.append("The application deadline has passed")
+        eligible = False
+
+    return eligible, reasons
+
+
+async def list_open_internships_with_eligibility(
+    db: AsyncSession, student: Student
+) -> list[dict]:
+    internships = await list_open_internships(db)
+    applied_result = await db.execute(
+        select(Application.internship_id).where(Application.student_id == student.id)
+    )
+    applied_ids = {row[0] for row in applied_result.all()}
+
+    output = []
+    for internship in internships:
+        already_applied = internship.id in applied_ids
+        can_apply, reasons = _check_internship_eligibility(student, internship)
+        if already_applied:
+            can_apply = False
+            reasons.append("You have already applied to this internship")
+
+        output.append({
+            "id": internship.id,
+            "title": internship.title,
+            "description": internship.description,
+            "required_skills": from_json(internship.required_skills),
+            "preferred_degree": internship.preferred_degree,
+            "preferred_branches": from_json(internship.preferred_branches),
+            "min_cgpa": internship.min_cgpa,
+            "location": internship.location,
+            "sector": internship.sector,
+            "mode": internship.mode,
+            "seats": internship.seats,
+            "duration": internship.duration,
+            "application_start_date": internship.application_start_date,
+            "application_deadline": internship.application_deadline,
+            "status": internship.status,
+            "results_published": internship.results_published,
+            "can_apply": can_apply,
+            "ineligible_reasons": reasons,
+            "already_applied": already_applied,
+        })
+    return output
 
 
 async def get_student_applications(db: AsyncSession, student_id: int) -> list[dict]:

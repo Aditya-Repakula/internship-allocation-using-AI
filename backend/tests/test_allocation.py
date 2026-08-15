@@ -134,6 +134,60 @@ async def test_duplicate_application_blocked(client, student_token, admin_token)
 
 
 @pytest.mark.asyncio
+async def test_allocation_preview_for_closed_internship(client, student_token, admin_token):
+    await _prepare_student(client, student_token)
+    internship = await _create_open_internship(client, admin_token)
+    iid = internship["id"]
+
+    await client.patch(
+        f"/api/admin/internships/{iid}/status",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "closed"},
+    )
+
+    preview = await client.get(
+        f"/api/admin/internships/{iid}/preview-allocation",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert preview.status_code == 200
+    assert preview.json()["predicted_allocated"] == 1
+    assert preview.json()["total_applicants"] == 1
+    assert isinstance(preview.json()["records"], list)
+
+
+@pytest.mark.asyncio
+async def test_global_allocation_preview(client, student_token, admin_token):
+    await _prepare_student(client, student_token)
+    a = await _create_open_internship(client, admin_token, title="Role A", seats=1)
+    b = await _create_open_internship(client, admin_token, title="Role B", seats=1)
+
+    await client.post(
+        f"/api/student/apply/{a['id']}",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+    await client.post(
+        f"/api/student/apply/{b['id']}",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+
+    for iid in (a["id"], b["id"]):
+        await client.patch(
+            f"/api/admin/internships/{iid}/status",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"status": "closed"},
+        )
+
+    preview = await client.get(
+        "/api/admin/preview-allocation",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert preview.status_code == 200
+    assert preview.json()["predicted_allocated"] == 1
+    assert preview.json()["total_eligible_students"] == 1
+    assert preview.json()["internships_processed"] == [a["id"], b["id"]]
+
+
+@pytest.mark.asyncio
 async def test_global_allocation_one_student_one_seat(client, student_token, admin_token):
     await _prepare_student(client, student_token)
     a = await _create_open_internship(client, admin_token, title="Role A", seats=1)
