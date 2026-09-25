@@ -101,9 +101,10 @@ def _check_internship_eligibility(student: Student, internship: Internship) -> t
         )
         eligible = False
 
-    if internship.preferred_branches:
+    preferred_branches = from_json(internship.preferred_branches)
+    if preferred_branches:
         student_branch = normalize_skill(student.branch or "")
-        allowed = {normalize_skill(b) for b in internship.preferred_branches}
+        allowed = {normalize_skill(b) for b in preferred_branches}
         if student_branch not in allowed:
             if not any(
                 student_branch == a or student_branch in a or a in student_branch

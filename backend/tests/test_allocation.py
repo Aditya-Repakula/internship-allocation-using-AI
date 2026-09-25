@@ -139,6 +139,12 @@ async def test_allocation_preview_for_closed_internship(client, student_token, a
     internship = await _create_open_internship(client, admin_token)
     iid = internship["id"]
 
+    apply = await client.post(
+        f"/api/student/apply/{iid}",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+    assert apply.status_code == 201
+
     await client.patch(
         f"/api/admin/internships/{iid}/status",
         headers={"Authorization": f"Bearer {admin_token}"},
@@ -235,14 +241,14 @@ async def test_rejected_applicant_sees_not_allocated_result(
         "/api/auth/student/register",
         json={
             "email": "second_student@test.com",
-            "password": "test123",
+            "password": "test1234",
             "name": "Second Student",
             "phone": "8888888888",
         },
     )
     login = await client.post(
         "/api/auth/student/login",
-        json={"email": "second_student@test.com", "password": "test123"},
+        json={"email": "second_student@test.com", "password": "test1234"},
     )
     second_token = login.json()["access_token"]
     await _prepare_student(client, second_token)

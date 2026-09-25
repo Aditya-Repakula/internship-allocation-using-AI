@@ -47,14 +47,14 @@ async def student_token(client):
         "/api/auth/student/register",
         json={
             "email": "test_student@test.com",
-            "password": "test123",
+            "password": "test1234",
             "name": "Test Student",
             "phone": "9999999999",
         },
     )
     res = await client.post(
         "/api/auth/student/login",
-        json={"email": "test_student@test.com", "password": "test123"},
+        json={"email": "test_student@test.com", "password": "test1234"},
     )
     return res.json()["access_token"]
 

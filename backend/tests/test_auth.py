@@ -7,7 +7,7 @@ async def test_student_register(client):
         "/api/auth/student/register",
         json={
             "email": "new_student@test.com",
-            "password": "test123",
+            "password": "test1234",
             "name": "New Student",
             "phone": "9999999999",
         },
@@ -20,7 +20,7 @@ async def test_student_register(client):
 async def test_student_register_duplicate(client):
     data = {
         "email": "dup@test.com",
-        "password": "test123",
+        "password": "test1234",
         "name": "Dup",
         "phone": "111",
     }
@@ -35,13 +35,13 @@ async def test_student_login(client):
         "/api/auth/student/register",
         json={
             "email": "login_test@test.com",
-            "password": "test123",
+            "password": "test1234",
             "name": "Login Test",
         },
     )
     res = await client.post(
         "/api/auth/student/login",
-        json={"email": "login_test@test.com", "password": "test123"},
+        json={"email": "login_test@test.com", "password": "test1234"},
     )
     assert res.status_code == 200
     assert "access_token" in res.json()
@@ -54,7 +54,7 @@ async def test_student_login_wrong_password(client):
         "/api/auth/student/register",
         json={
             "email": "wrongpw@test.com",
-            "password": "test123",
+            "password": "test1234",
             "name": "Wrong",
         },
     )

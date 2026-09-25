@@ -127,7 +127,7 @@ async def trigger_allocation(
 
 
 @router.get("/preview-allocation")
-async def preview_global_allocation(
+async def preview_global(
     current: Admin = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):

@@ -1,7 +1,9 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,6 +13,7 @@ from app.core.config import settings
 from app.utils.logging import setup_logging
 
 setup_logging(debug=settings.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -35,12 +38,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={
             "detail": "Request validation failed",
-            "errors": exc.errors(),
+            "errors": jsonable_encoder(exc.errors()),
         },
     )
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},

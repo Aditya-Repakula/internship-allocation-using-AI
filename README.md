@@ -47,6 +47,10 @@ Admin clicks "Publish Results"
 Students see final allocation
 ```
 
+> Tip: on a CLOSED internship you can click **Preview Allocation** first —
+> `GET /api/admin/internships/{id}/preview-allocation` (or `GET /api/admin/preview-allocation`
+> for all closed internships) returns predicted matches **without** writing anything to the DB.
+
 ---
 
 ## Project Structure
@@ -123,8 +127,25 @@ python -m app.seed
 | Student | aditya@student.com  | student123  |
 | Student | priya@student.com   | student123  |
 | Student | rahul@student.com   | student123  |
+| Student | sneha@student.com   | student123  |
+| Student | karthik@student.com | student123  |
 
-Three open internships are created (AI/ML, Data Analyst, Web Development) with a 30-day deadline.
+Seeded students have confirmed skills **plus projects and certifications**, which the
+matcher uses as skill evidence. Three open internships are created (AI/ML, Data Analyst,
+Web Development) with a 30-day deadline.
+
+---
+
+## Notes
+
+- **Registration passwords** must be at least 8 characters and include both letters
+  and numbers (enforced by `StudentRegister` validation).
+- **Student internship browse** (`GET /api/student/internships`) returns eligibility
+  metadata per internship: `can_apply`, `ineligible_reasons`, `already_applied`.
+- **Allocation quality gate:** pairs scoring below `MIN_OVERALL_MATCH_SCORE = 45.0`
+  are excluded from allocation (`backend/app/ai/allocation_engine.py`).
+- **Embedding cache:** repeated texts are encoded once per process
+  (`embed_cached` / `clear_cache` in `backend/app/ai/embeddings.py`).
 
 ---
 
